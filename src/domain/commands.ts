@@ -821,12 +821,13 @@ const addIngredient = {
   schema: z.object({
     name: z.string().trim().min(1).max(40),
     aliases: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
-    category: z.enum(['protein', 'fresh', 'frozen_veg', 'pantry', 'staple']),
-    unit: z.enum(['g', 'ml', 'count']),
+    category: z.enum(['protein', 'fresh', 'frozen_veg', 'pantry', 'staple', 'seasoning']),
+    unit: z.enum(['g', 'ml', 'count', 'level']),
     countUnit: z.string().max(4).optional(),
     defaultLocation: location,
   }).strict(),
-  run(tx: Tx, i: { name: string; aliases?: string[]; category: Ingredient['category']; unit: 'g' | 'ml' | 'count'; countUnit?: string; defaultLocation: Location }) {
+  run(tx: Tx, i: { name: string; aliases?: string[]; category: Ingredient['category']; unit: Ingredient['unit']; countUnit?: string; defaultLocation: Location }) {
+    if ((i.category === 'seasoning') !== (i.unit === 'level')) throw new DomainError('BAD_UNIT', '调料用 level 记账，其他食材按数量记账');
     const dup = tx.state.ingredients.find((x) => x.name === i.name);
     // 备用食材在库存页是收起的，用户看不到它，所以直接沿用而不是报重名。
     if (dup?.catalogOnly) { tx.summary = `目录里已经有 ${dup.name}`; tx.data = { ingredientId: dup.id }; return; }
@@ -835,7 +836,7 @@ const addIngredient = {
       id: tx.newId('ing'), name: i.name, aliases: i.aliases ?? [], category: i.category, unit: i.unit,
       ...(i.unit === 'count' ? { countUnit: i.countUnit ?? '个' } : {}),
       unitSpecs: {}, highRisk: false, defaultLocation: i.defaultLocation, shelfDays: null, thawedDays: null,
-      freezable: false, needsThaw: false, quickThawMinutes: null, level: null, markedOut: false, rev: 0,
+      freezable: false, needsThaw: false, quickThawMinutes: null, level: i.unit === 'level' ? 'unconfirmed' : null, markedOut: false, rev: 0,
     });
     tx.summary = `目录新增 ${i.name}`;
     tx.data = { ingredientId: ing.id };

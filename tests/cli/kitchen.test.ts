@@ -141,6 +141,32 @@ describe('修改', () => {
   });
 });
 
+describe('没有菜谱的东西也能记', () => {
+  beforeEach(() => { sh('init'); });
+  const idOf = (name: string) => loadState().ingredients.find((i) => i.name === name)!.id;
+
+  it('新调料进目录后默认未确认，记成有之后出现在库存里', () => {
+    sh('run', 'addIngredient', '{"name":"鱼露","category":"seasoning","unit":"level","defaultLocation":"pantry"}');
+    expect(loadState().ingredients.find((i) => i.name === '鱼露')?.level).toBe('unconfirmed');
+    expect(sh('stock', '鱼露')).toContain('没有「鱼露」的库存记录');
+    sh('run', 'importStock', JSON.stringify({ entries: [], have: [idOf('鱼露')] }));
+    expect(sh('stock', '鱼露')).toContain('调料有：鱼露');
+  });
+
+  it('新食物按数量记，不需要菜谱', () => {
+    sh('run', 'addIngredient', '{"name":"海苔","category":"pantry","unit":"g","defaultLocation":"pantry"}');
+    sh('run', 'importStock', JSON.stringify({ entries: [{ ingredientId: idOf('海苔'), qty: 50 }], have: [] }));
+    expect(sh('stock', '海苔')).toContain('海苔');
+    expect(sh('stock', '海苔')).toContain('50g');
+  });
+
+  it('调料和记账方式对不上时拒绝，不写入', () => {
+    expect(() => sh('run', 'addIngredient', '{"name":"鱼露","category":"seasoning","unit":"g","defaultLocation":"pantry"}')).toThrow('level');
+    expect(() => sh('run', 'addIngredient', '{"name":"海苔","category":"pantry","unit":"level","defaultLocation":"pantry"}')).toThrow('level');
+    expect(loadState().ingredients.some((i) => i.name === '鱼露' || i.name === '海苔')).toBe(false);
+  });
+});
+
 describe('推荐不能把没确认的东西说成有', () => {
   beforeEach(() => { sh('init'); });
 

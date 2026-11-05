@@ -8,7 +8,7 @@ import {
   reflow, setPref, slotId, slotLabel, slotSort, swapDays, SLOT_LABEL,
 } from './planner';
 import { COOKING_OIL_PREF } from './intake';
-import { BAG_QTY_MIGRATION, seedState } from './seed';
+import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, seedState } from './seed';
 import { forecastShopping } from './shopping';
 import { DomainError, Tx } from './tx';
 import type {
@@ -1022,6 +1022,10 @@ const OUTDATED_NOTES: [Id, string][] = [['chicken_breast', '采购时可按一�
 /** 鸡胸肉和牛肉碎一袋 1 lb，菜谱默认用量从 500g 改成 454g。 */
 const OLD_BAG_QTY = 500;
 const BAG_QTY = 454;
+/** 瘦肉一天一袋 1 lb，冷冻混合蔬菜一包 10 oz 吃两顿。这里是要换掉的旧默认值。 */
+const OLD_PORTION_QTY: Record<Id, number[]> = {
+  pork_loin: [500], beef_slices: [500], frozen_fish: [500], frozen_mixed_veg: [150, 200],
+};
 
 /**
  * 把新版本目录并进已有数据：只加缺的行，不改用户已有的行。
@@ -1069,6 +1073,13 @@ const syncCatalog = {
         if (row.qty === BAG_QTY && cur?.qty === OLD_BAG_QTY) tx.put<RecipeIngredient>('recipe_ingredients', { ...cur, qty: BAG_QTY });
       }
       tx.put<Preference>('preferences', { id: BAG_QTY_MIGRATION, value: true, rev: 0 });
+    }
+    if (!tx.get<Preference>('preferences', PORTION_QTY_MIGRATION)) {
+      for (const row of seed.recipe_ingredients) {
+        const cur = tx.get<RecipeIngredient>('recipe_ingredients', row.id);
+        if (cur?.qty != null && OLD_PORTION_QTY[row.ingredientId]?.includes(cur.qty)) tx.put<RecipeIngredient>('recipe_ingredients', { ...cur, qty: row.qty });
+      }
+      tx.put<Preference>('preferences', { id: PORTION_QTY_MIGRATION, value: true, rev: 0 });
     }
     tx.summary = `目录新增 ${recipes} 道菜、${missing.length} 种食材`;
     tx.undoable = false;

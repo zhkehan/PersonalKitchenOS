@@ -4,11 +4,12 @@ import { MARINADE_NOTE, DIPS, HOT_SAUCES, MARINADES, TEMPLATES } from '../../src
 import { LIBRARY_DEFS, LIBRARY_INGREDIENTS } from '../../src/domain/library';
 import { NUTRITION_FACTS } from '../../src/domain/nutrition';
 import { checkRecipe, recommendToday } from '../../src/domain/recommend';
-import { BAG_QTY_MIGRATION, ROTATION_CYCLE, seedState } from '../../src/domain/seed';
+import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, ROTATION_CYCLE, seedState } from '../../src/domain/seed';
 import type { KitchenState } from '../../src/domain/types';
 import { Kitchen, NOON, TODAY } from './helpers';
 
 const OLD_NOTE = '采购时可按一顿/一天分袋，冷冻前保持原味';
+const QTY_MIGRATIONS = [BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION];
 
 /** 上线第一版的目录：已经装在手机上的数据长这样。 */
 function firstReleaseState(): KitchenState {
@@ -21,7 +22,7 @@ function firstReleaseState(): KitchenState {
     recipe_variants: s.recipe_variants.filter((v) => !library.has(v.recipeId)),
     recipe_ingredients: s.recipe_ingredients.filter((r) => !library.has(r.recipeId)).map((r) => (r.qty === 454 ? { ...r, qty: 500 } : r)),
     recipe_steps: s.recipe_steps.filter((x) => !library.has(x.variantId.split(':')[0])),
-    preferences: s.preferences.filter((p) => p.id !== BAG_QTY_MIGRATION),
+    preferences: s.preferences.filter((p) => !QTY_MIGRATIONS.includes(p.id)),
   };
 }
 
@@ -43,7 +44,7 @@ describe('升级已有数据', () => {
     for (const t of ['inventory_lots', 'inventory_events', 'meal_slots', 'prepared_batches', 'consumption_events', 'cook_sessions', 'protein_weekly_preferences'] as const) {
       expect(k.state[t]).toEqual(before[t]);
     }
-    expect(k.state.preferences.filter((p) => p.id !== BAG_QTY_MIGRATION)).toEqual(before.preferences);
+    expect(k.state.preferences.filter((p) => !QTY_MIGRATIONS.includes(p.id))).toEqual(before.preferences);
     expect(k.state.recipes.filter((r) => r.tier !== 'library')).toEqual(before.recipes);
     expect(k.state.recipes.find((r) => r.id === 'R01')).toMatchObject({ feedback: 'good', notes: '多放蒜' });
     expect(k.state.ingredients.find((i) => i.id === 'light_soy')?.level).toBe('have');
@@ -64,13 +65,11 @@ describe('升级已有数据', () => {
     const qty = (k: Kitchen, recipeId: string, ingredientId: string) =>
       k.state.recipe_ingredients.find((r) => r.recipeId === recipeId && r.ingredientId === ingredientId)?.qty;
 
-    it('已安装的手机：还是 500g 的行改过来，其他肉不动', () => {
+    it('已安装的手机：还是 500g 的行改过来', () => {
       const k = new Kitchen(NOON, firstReleaseState());
       k.run('syncCatalog', {});
       expect(qty(k, 'R01', 'chicken_breast')).toBe(454);
       expect(qty(k, 'R04', 'ground_beef')).toBe(454);
-      expect(qty(k, 'R05', 'pork_loin')).toBe(500);
-      expect(qty(k, 'R06', 'frozen_fish')).toBe(500);
     });
 
     it('用户改过的用量不动', () => {
@@ -88,6 +87,65 @@ describe('升级已有数据', () => {
       k.run('updateRecipe', { recipeId: 'R01', ingredientQty: [{ rowId: row.id, qty: 500 }] });
       k.run('syncCatalog', {});
       expect(qty(k, 'R01', 'chicken_breast')).toBe(500);
+    });
+  });
+
+  describe('瘦肉改成 454g，冷冻混合蔬菜改成一包 10 oz', () => {
+    const qty = (k: Kitchen, recipeId: string, ingredientId: string) =>
+      k.state.recipe_ingredients.find((r) => r.recipeId === recipeId && r.ingredientId === ingredientId)?.qty;
+    const OLD: Record<string, number> = { pork_loin: 500, beef_slices: 500, frozen_fish: 500, frozen_mixed_veg: 200 };
+
+    /** 跑过 454g 迁移、但还没跑这次迁移的数据，也就是用户现在的状态。 */
+    function installed(): KitchenState {
+      const s = seedState();
+      return {
+        ...s,
+        recipe_ingredients: s.recipe_ingredients.map((r) => (r.recipeId === 'R03' && r.ingredientId === 'frozen_mixed_veg' ? { ...r, qty: 150 } : OLD[r.ingredientId] ? { ...r, qty: OLD[r.ingredientId] } : r)),
+        preferences: s.preferences.filter((p) => p.id !== PORTION_QTY_MIGRATION),
+      };
+    }
+
+    it('旧默认值都改过来，其他用量不动', () => {
+      const k = new Kitchen(NOON, installed());
+      const ribs = k.state.recipe_ingredients.find((r) => r.ingredientId === 'pork_ribs')!;
+      k.run('syncCatalog', {});
+      expect(qty(k, 'R05', 'pork_loin')).toBe(454);
+      expect(qty(k, 'R06', 'frozen_fish')).toBe(454);
+      expect(qty(k, 'L13', 'beef_slices')).toBe(454);
+      expect(qty(k, 'R03', 'frozen_mixed_veg')).toBe(283);
+      expect(qty(k, 'B02', 'frozen_mixed_veg')).toBe(283);
+      expect(qty(k, 'R07', 'frozen_shrimp')).toBe(350);
+      expect(qty(k, ribs.recipeId, 'pork_ribs')).toBe(500);
+    });
+
+    it('用户改过的用量不动', () => {
+      const k = new Kitchen(NOON, installed());
+      const row = k.state.recipe_ingredients.find((r) => r.recipeId === 'R06' && r.ingredientId === 'frozen_fish')!;
+      k.run('updateRecipe', { recipeId: 'R06', ingredientQty: [{ rowId: row.id, qty: 300 }] });
+      k.run('syncCatalog', {});
+      expect(qty(k, 'R06', 'frozen_fish')).toBe(300);
+    });
+
+    it('只迁移一次：之后用户改回 500g 不会再被盖掉', () => {
+      const k = new Kitchen(NOON, installed());
+      k.run('syncCatalog', {});
+      const row = k.state.recipe_ingredients.find((r) => r.recipeId === 'R06' && r.ingredientId === 'frozen_fish')!;
+      k.run('updateRecipe', { recipeId: 'R06', ingredientQty: [{ rowId: row.id, qty: 500 }] });
+      k.run('syncCatalog', {});
+      expect(qty(k, 'R06', 'frozen_fish')).toBe(500);
+    });
+
+    it('新装的数据自带这些用量和标记', () => {
+      const k = new Kitchen();
+      expect(qty(k, 'R06', 'frozen_fish')).toBe(454);
+      expect(qty(k, 'R03', 'frozen_mixed_veg')).toBe(283);
+      expect(k.state.preferences.map((p) => p.id)).toContain(PORTION_QTY_MIGRATION);
+    });
+
+    it('一袋 1 lb 的鱼片算够，不再误报不够', () => {
+      const k = new Kitchen();
+      k.run('adjustInventory', { ingredientId: 'frozen_fish', qty: 1, unit: 'lb' });
+      expect(checkRecipe(k.state, 'R06', 2, TODAY).lines.find((l) => l.ingredientId === 'frozen_fish')!.status).not.toBe('short');
     });
   });
 

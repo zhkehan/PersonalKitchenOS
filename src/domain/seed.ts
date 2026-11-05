@@ -143,7 +143,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R03', name: '咖喱鸡肉杂蔬', tier: 'core', protein: 'chicken', flavors: ['咖喱'],
     seasoning: '咖喱粉 + 少量牛奶或水', cut: '鸡丁 1.5–2cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 454], ['yellow_onion', 100], ['carrot', 1], ['frozen_mixed_veg', 150], ['curry_powder', null, 'required', '约 2 大勺'], ['milk', 100, 'optional', '也可用水'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['chicken_breast', 454], ['yellow_onion', 100], ['carrot', 1], ['frozen_mixed_veg', 283], ['curry_powder', null, 'required', '约 2 大勺'], ['milk', 100, 'optional', '也可用水'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'pot', name: '小锅焖煮', equipment: ['pot'], minutes: 30, fit: '首选', steps: ['洋葱切丁炒软，胡萝卜切小块同炒。', '加鸡丁炒到变色。', '撒咖喱粉炒香，加水没过一半，小火焖 10 分钟。', '加冷冻杂蔬再煮 5 分钟，加少量牛奶收稠。', '确认鸡肉中心 74°C。'] },
       { key: 'hybrid', name: '鸡先烤后入咖喱汁', equipment: ['airfryer', 'pot'], minutes: 30, fit: '不建议纯炸：酱汁菜', steps: ['鸡块空气炸 190°C 约 10 分钟。', '小锅炒洋葱、胡萝卜，加咖喱粉和水煮软。', '放杂蔬和鸡块，再煮 5 分钟。', '确认鸡肉中心 74°C。'] },
@@ -160,7 +160,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R05', name: '黄豆酱炒猪里脊', tier: 'core', protein: 'pork', flavors: ['酱香', '微辣'], spicy: true,
     seasoning: '黄豆酱约 12g/250g 肉 + 蒜末 + 小米辣，少量水收汁', cut: '薄片 4–6mm', leftover: LEFTOVER, safety: SAFE_PORK,
-    ingredients: [['pork_loin', 500], ['yellow_onion', 80], ['soybean_paste', null, 'required', '约 24g'], ['minced_garlic', null, 'required', '适量'], ['thai_chili', null, 'optional', '按口味'], ['green_pepper', 1, 'optional', '可选'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['pork_loin', 454], ['yellow_onion', 80], ['soybean_paste', null, 'required', '约 24g'], ['minced_garlic', null, 'required', '适量'], ['thai_chili', null, 'optional', '按口味'], ['green_pepper', 1, 'optional', '可选'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'pan', name: '薄片低火力煎焖', equipment: ['pan'], minutes: 20, fit: '首选', steps: ['里脊切 4–6mm 薄片。', '少油铺开两面煎到变色盛出。', '炒洋葱、蒜末、小米辣，加黄豆酱炒香。', '肉回锅加 2 勺水翻匀收汁，确认全熟。'] },
       { key: 'hybrid', name: '肉先烤后拌酱', equipment: ['airfryer', 'pan'], minutes: 20, fit: '适合混合', steps: ['里脊切厚片，少油拌匀。', `空气炸锅 190°C 约 8 分钟。${AF}`, '炒锅炒洋葱和黄豆酱，加少量水。', '肉片回锅翻匀。'] },
@@ -169,7 +169,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R06', name: '番茄炖鱼片', tier: 'core', protein: 'fish', flavors: ['番茄', '酸甜'],
     seasoning: '番茄罐头 + 蒜末 + 黑胡椒', cut: '鱼片切块，提前冰箱解冻', odor: ODOR_FISH, leftover: LEFTOVER, safety: SAFE_FISH,
-    ingredients: [['frozen_fish', 500], ['canned_tomato', 1], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['frozen_spinach', 80, 'optional', '可选蔬菜'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['frozen_fish', 454], ['canned_tomato', 1], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['frozen_spinach', 80, 'optional', '可选蔬菜'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'pot', name: '小锅轻炖', equipment: ['pot'], minutes: 20, fit: '首选', steps: ['鱼片提前放冰箱解冻，擦干切块。', '小锅炒蒜末，倒番茄罐头煮 5 分钟。', '放鱼块，小火轻炖 6–8 分钟，不要大力搅。', '确认鱼中心 63°C、能分瓣。'] },
       { key: 'hybrid', name: '鱼先烤后浇番茄汁', equipment: ['airfryer', 'pot'], minutes: 20, fit: '可选混合', steps: ['鱼片解冻擦干，空气炸 190°C 约 8 分钟。', '小锅煮番茄蒜末汁。', '浇在鱼上，确认鱼中心 63°C。'] },
@@ -206,7 +206,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'V04', name: '韩式甜辣鸡 + 杂蔬', tier: 'variant', parentId: 'R03', protein: 'chicken', flavors: ['韩式', '甜辣'], spicy: true,
     seasoning: '韩式辣酱 12g + 蜂蜜 5g + 生抽 5ml（每 250g 肉）', cut: '鸡丁 1.5–2cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 454], ['frozen_mixed_veg', 200], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
+    ingredients: [['chicken_breast', 454], ['frozen_mixed_veg', 283], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
     methods: [{ key: 'pan', name: '煎焖拌酱', equipment: ['pan'], minutes: 22, fit: '首选', steps: ['鸡丁煎到变色。', '下杂蔬炒 3 分钟。', '加酱和 2 勺水焖 3 分钟，确认中心 74°C。'] }],
   },
   {
@@ -218,25 +218,25 @@ const DEFS: RecipeDef[] = [
   {
     id: 'V06', name: '藤椒猪里脊', tier: 'variant', parentId: 'R05', protein: 'pork', flavors: ['藤椒', '麻'], spicy: true,
     seasoning: '生抽 8ml + 陈醋 5ml（每 250g 肉）+ 少量藤椒油，出锅前加', cut: '薄片 4–6mm', leftover: LEFTOVER, safety: SAFE_PORK,
-    ingredients: [['pork_loin', 500], ['rattan_pepper_oil', null, 'required', '少量'], ['light_soy', null, 'required', '16ml'], ['black_vinegar', null, 'required', '10ml']],
+    ingredients: [['pork_loin', 454], ['rattan_pepper_oil', null, 'required', '少量'], ['light_soy', null, 'required', '16ml'], ['black_vinegar', null, 'required', '10ml']],
     methods: [{ key: 'pan', name: '薄片煎炒', equipment: ['pan'], minutes: 15, fit: '首选', steps: ['里脊切薄片。', '少油煎到两面变色、全熟。', '加生抽、陈醋翻匀。', '关火后淋藤椒油。'] }],
   },
   {
     id: 'V07', name: '孜然烤猪里脊', tier: 'variant', parentId: 'R05', protein: 'pork', flavors: ['孜然'], spicy: true,
     seasoning: '孜然粉 + 辣椒粉 + 生抽', cut: '厚片或 2cm 块', leftover: LEFTOVER, safety: SAFE_PORK,
-    ingredients: [['pork_loin', 500], ['cumin', null, 'required', '4g'], ['chili_powder', null, 'required', '2g'], ['light_soy', null, 'required', '10ml']],
+    ingredients: [['pork_loin', 454], ['cumin', null, 'required', '4g'], ['chili_powder', null, 'required', '2g'], ['light_soy', null, 'required', '10ml']],
     methods: [{ key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 18, fit: '适合', airfryerOnlyOk: true, steps: ['肉拌调料和少许油。', `空气炸 190°C 约 12 分钟，中途翻面。${AF}`, '确认中心 63°C 后静置 3 分钟。'] }],
   },
   {
     id: 'V08', name: '葱姜鱼', tier: 'variant', parentId: 'R06', protein: 'fish', flavors: ['葱姜'],
     seasoning: '姜丝 + 小葱 + 生抽', cut: '鱼片提前解冻', odor: ODOR_FISH, leftover: LEFTOVER, safety: SAFE_FISH,
-    ingredients: [['frozen_fish', 500], ['ginger', null, 'required', '几片'], ['scallion', 0.5], ['light_soy', null, 'required', '少量']],
+    ingredients: [['frozen_fish', 454], ['ginger', null, 'required', '几片'], ['scallion', 0.5], ['light_soy', null, 'required', '少量']],
     methods: [{ key: 'steamer', name: '蒸', equipment: ['steamer'], minutes: 15, fit: '首选', steps: ['鱼解冻擦干，铺姜丝。', '水开后蒸 8 分钟。', '撒葱花淋生抽，确认中心 63°C。'] }],
   },
   {
     id: 'V09', name: '蒜香烤鱼', tier: 'variant', parentId: 'R06', protein: 'fish', flavors: ['蒜香'],
     seasoning: '蒜末 + 黑胡椒 + 少量橄榄油', cut: '鱼片提前解冻', odor: ODOR_FISH, leftover: LEFTOVER, safety: SAFE_FISH,
-    ingredients: [['frozen_fish', 500], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['olive_oil', null, 'required', '少量']],
+    ingredients: [['frozen_fish', 454], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['olive_oil', null, 'required', '少量']],
     methods: [{ key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 12, fit: '适合', airfryerOnlyOk: true, steps: ['鱼解冻擦干，抹蒜末黑胡椒和少量油。', `空气炸 190°C 约 8 分钟。${AF}`, '确认中心 63°C。'] }],
   },
   {
@@ -255,7 +255,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'B02', name: '麻辣香锅牛肉杂蔬', tier: 'backup', protein: 'beef', flavors: ['麻辣'], spicy: true,
     seasoning: '炒料 10–15g，谨慎额外加盐和油', cut: '牛肉碎', leftover: LEFTOVER, safety: SAFE_BEEF,
-    ingredients: [['ground_beef', 454], ['frozen_mixed_veg', 200], ['mala_paste', null, 'required', '20–30g']],
+    ingredients: [['ground_beef', 454], ['frozen_mixed_veg', 283], ['mala_paste', null, 'required', '20–30g']],
     methods: [{ key: 'pan', name: '炒锅', equipment: ['pan'], minutes: 18, fit: '首选', steps: ['牛肉碎炒散至变色。', '加炒料炒香，下杂蔬炒 4 分钟。', '确认牛肉碎中心 71°C。'] }],
   },
   {
@@ -273,7 +273,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'B05', name: '番茄鱼块意面', tier: 'backup', protein: 'fish', flavors: ['番茄'],
     seasoning: '番茄罐头 + 蒜末 + 黑胡椒', cut: '鱼块提前解冻', odor: ODOR_FISH, leftover: LEFTOVER, safety: SAFE_FISH,
-    ingredients: [['frozen_fish', 500], ['canned_tomato', 1], ['pasta', 160], ['minced_garlic', null, 'required', '适量']],
+    ingredients: [['frozen_fish', 454], ['canned_tomato', 1], ['pasta', 160], ['minced_garlic', null, 'required', '适量']],
     methods: [{ key: 'pot', name: '小锅', equipment: ['pot'], minutes: 25, fit: '首选', steps: ['煮面。', '蒜末炒香加番茄煮 5 分钟。', '放鱼块轻煮 6 分钟，拌面，确认中心 63°C。'] }],
   },
   // —— 加餐（不计入每周肉类日）——
@@ -293,6 +293,8 @@ const DEFS: RecipeDef[] = [
 
 /** 新装的数据本来就是 454g，不需要走 syncCatalog 里的用量迁移。 */
 export const BAG_QTY_MIGRATION = 'migration:bag_qty_454g';
+/** 同上：瘦肉 454g、冷冻混合蔬菜 283g。 */
+export const PORTION_QTY_MIGRATION = 'migration:portion_qty';
 
 export function seedRecipes(): Pick<KitchenState, 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps'> {
   return expandRecipes([...DEFS, ...LIBRARY_DEFS]);
@@ -311,6 +313,7 @@ export function seedState(): KitchenState {
       { id: 'shopIntervalDays', value: 14, rev: 0 },
       { id: 'nextShopDate', value: null, rev: 0 },
       { id: BAG_QTY_MIGRATION, value: true, rev: 0 },
+      { id: PORTION_QTY_MIGRATION, value: true, rev: 0 },
     ],
   };
 }

@@ -6,7 +6,7 @@ import type { Ingredient } from './types';
  *
  * 只收菜和食材，不收旧饮食计划：每日餐单、周结构、热量目标、增肌减脂阶段、采购频率都没有进来。
  * 这些菜不进自动推荐（规格：不要不断生成陌生新菜），用户点名或自己排进计划才会出现。
- * 笔记里没写的主料用量，一律用规格的初始值（每顿约 250g 生肉），可在菜谱里改。
+ * 笔记里没写的主料用量，一律按一天 1 lb 生肉吃两顿，可在菜谱里改。
  */
 
 const lib = (i: Ingredient): Ingredient => ({ ...i, catalogOnly: true });
@@ -58,8 +58,8 @@ const SAFE_RIBS = '猪肉中心至少 63°C 并静置 3 分钟；排骨要焖到
 const SAFE_LIVER_NOTE = '一周最多一次，维生素 A 和胆固醇很高；孕期慎食。';
 
 const CHICKEN: IngDef = ['chicken_breast', 454];
-const BEEF: IngDef = ['beef_slices', 500];
-const VEG: IngDef = ['frozen_mixed_veg', 200, 'optional', '任意蔬菜'];
+const BEEF: IngDef = ['beef_slices', 454];
+const VEG: IngDef = ['frozen_mixed_veg', 283, 'optional', '任意蔬菜'];
 const RICE: IngDef = ['rice', 150, 'optional', '配饭'];
 const need = (id: string, label = '适量'): IngDef => [id, null, 'required', label];
 const maybe = (id: string, label = '适量'): IngDef => [id, null, 'optional', label];

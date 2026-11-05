@@ -47,6 +47,18 @@ export const ODOR_CHICKEN = '冷冻鸡胸有腥味时，用姜片、花椒或一
 export const ODOR_FISH = '鱼腥味重时加姜丝、蒜和少量酸味；只改善风味，不能挽救变质食材。';
 export const AF = '空气炸锅内侧约 19.5×20cm，单层摆放，放不下就分批。';
 
+/** 一份配饭的生重：白米、糙米各 40g，也就是两顿各 80g。 */
+const RICE_PER_SERVING = 40;
+
+/** 配饭默认一半白米一半糙米。糙米放在最后：行 id 按位置生成，已有的行不能挪。加餐类的菜不改。 */
+export function mixRice(d: RecipeDef): RecipeDef {
+  const rice = d.ingredients.find(([id]) => id === 'rice');
+  if (!rice || d.tier === 'snack') return d;
+  const qty = RICE_PER_SERVING * (d.servings ?? 2);
+  const [, , role, label] = rice;
+  return { ...d, ingredients: [...d.ingredients.map((x): IngDef => (x === rice ? ['rice', qty, role, label] : x)), ['brown_rice', qty, role, label]] };
+}
+
 export function expandRecipes(defs: RecipeDef[]): Pick<KitchenState, 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps'> {
   const recipes: Recipe[] = [];
   const recipe_variants: RecipeVariant[] = [];

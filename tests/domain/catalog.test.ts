@@ -4,12 +4,12 @@ import { MARINADE_NOTE, DIPS, HOT_SAUCES, MARINADES, TEMPLATES } from '../../src
 import { LIBRARY_DEFS, LIBRARY_INGREDIENTS, PANTRY_DEFS } from '../../src/domain/library';
 import { NUTRITION_FACTS } from '../../src/domain/nutrition';
 import { checkRecipe, recommendToday } from '../../src/domain/recommend';
-import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, ROTATION_CYCLE, seedState } from '../../src/domain/seed';
+import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, RICE_QTY_MIGRATION, ROTATION_CYCLE, seedState } from '../../src/domain/seed';
 import type { KitchenState } from '../../src/domain/types';
 import { Kitchen, NOON, TODAY } from './helpers';
 
 const OLD_NOTE = '采购时可按一顿/一天分袋，冷冻前保持原味';
-const QTY_MIGRATIONS = [BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION];
+const QTY_MIGRATIONS = [BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, RICE_QTY_MIGRATION];
 
 /** 上线第一版的目录：已经装在手机上的数据长这样。 */
 function firstReleaseState(): KitchenState {
@@ -232,6 +232,27 @@ describe('菜谱库不打扰日常', () => {
     // 确认这个场景真的能测到过滤：同样的菜点名排进这一餐就能出现。
     k.run('swapRecipe', { date: TODAY, slot: 'lunch', recipeId: 'L13' });
     expect(recommendToday(k.state, k.now).primary?.title).toBe('韩式炒牛肉');
+  });
+
+  it('配饭默认白米糙米各一半，用户改过的用量不动，只迁移一次', () => {
+    const k = new Kitchen();
+    const row = (recipeId: string, id: string) => k.state.recipe_ingredients.find((r) => r.recipeId === recipeId && r.ingredientId === id);
+    expect([row('R01', 'rice')?.qty, row('R01', 'brown_rice')?.qty]).toEqual([80, 80]);
+    expect([row('L23', 'rice')?.qty, row('L23', 'brown_rice')?.qty]).toEqual([160, 160]);
+    expect([row('S01', 'rice')?.qty, row('S01', 'brown_rice')]).toEqual([80, undefined]);
+    const brownR01 = row('R01', 'brown_rice')!.id;
+    k.state.recipe_ingredients = k.state.recipe_ingredients.filter((r) => r.id !== brownR01).map((r) => {
+      if (r.recipeId === 'R01' && r.ingredientId === 'rice') return { ...r, qty: 150 };
+      if (r.recipeId === 'R02' && r.ingredientId === 'rice') return { ...r, qty: 100 };
+      return r;
+    });
+    k.state.preferences = k.state.preferences.filter((p) => p.id !== RICE_QTY_MIGRATION);
+    k.run('syncCatalog', {});
+    expect([row('R01', 'rice')?.qty, row('R01', 'brown_rice')?.qty]).toEqual([80, 80]);
+    expect(row('R02', 'rice')?.qty).toBe(100);
+    k.state.recipe_ingredients = k.state.recipe_ingredients.map((r) => (r.recipeId === 'R01' && r.ingredientId === 'rice' ? { ...r, qty: 150 } : r));
+    k.run('syncCatalog', {});
+    expect(row('R01', 'rice')?.qty).toBe(150);
   });
 
   it('常备菜进自动推荐，但不进 7 天轮换', () => {

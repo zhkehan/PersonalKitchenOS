@@ -40,6 +40,7 @@ npm run -s kitchen -- undo 操作id
 | 调料有了 | `importStock` 的 `have`；快用完或没了用 `setSeasoningLevel` |
 | 家里有目录没有的东西 | 先 `addIngredient` `{"name":"鱼露","category":"seasoning","unit":"level","defaultLocation":"pantry"}`（食物用 `"g"` 等数量单位），再记库存；没有菜谱也记 |
 | 做完一道菜 | `finishCook` `{"recipeId":"R01","servings":2,"eatNow":1,"date":"…","slot":"lunch"}`，配饭放进 `actuals` |
+| 这一锅没放油、用油不同 | `finishCook` 加 `"oilGrams":0`，是每份的克数，只影响这一锅；要改默认才用 `setCookingOil` |
 | 实际用量不同 | `finishCook` 的 `actuals`；做完才发现用 `reviseCookSession` |
 | 吃了熟菜 | `consumePreparedPortion` `{"batchId":"…","portions":1}`，批次 id 在 `stock` 里 |
 | 其实没吃 | `revertConsumption` |

@@ -88,8 +88,9 @@ describe('一道菜的一份', () => {
   });
 
   it('可选的配饭单独列出，不混进基础数字', () => {
-    const rice = recipeServing(seedState(), 'R01').extras.find((e) => e.name === '大米');
-    expect(rice?.macros.carbs).toBeCloseTo(60);
+    const extras = recipeServing(seedState(), 'R01').extras;
+    expect(extras.find((e) => e.name === '大米')?.macros.carbs).toBeCloseTo(32);
+    expect(extras.find((e) => e.name === '糙米')?.macros.carbs).toBeCloseTo(30.52);
   });
 
   it('实物食材缺数量时要说出来，不能按 0 算', () => {
@@ -141,6 +142,15 @@ describe('烹调油', () => {
     k.run('setCookingOil', { grams: 0 });
     expect(recipeServing(k.state, 'R01').oilGrams).toBe(0);
     expect(dayIntake(k.state, TODAY).macros.fat).toBeCloseTo(R01_TOTAL.fat / 2);
+  });
+
+  it('这一锅单独记用油，别的锅和菜谱估算不受影响', () => {
+    const k = new Kitchen();
+    cookR01(k, { oilGrams: 0 });
+    expect(dayIntake(k.state, TODAY).macros.fat).toBeCloseTo(R01_TOTAL.fat / 2);
+    cookR01(k, { date: TODAY, slot: 'dinner' });
+    expect(dayIntake(k.state, TODAY).macros.fat).toBeCloseTo(R01_TOTAL.fat + 10);
+    expect(recipeServing(k.state, 'R01').oilGrams).toBe(10);
   });
 
   it('加餐类的菜不算油', () => {

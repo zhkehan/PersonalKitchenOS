@@ -8,7 +8,7 @@ import {
   reflow, setPref, slotId, slotLabel, slotSort, swapDays, SLOT_LABEL,
 } from './planner';
 import { COOKING_OIL_PREF } from './intake';
-import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, seedState } from './seed';
+import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, RICE_QTY_MIGRATION, seedState } from './seed';
 import { forecastShopping } from './shopping';
 import { DomainError, Tx } from './tx';
 import type {
@@ -333,8 +333,9 @@ const finishCook = {
     eatNow: z.number().min(0).max(20),
     actuals: z.array(actualSchema).optional(),
     storeIn: z.enum(['fridge', 'freezer']).optional(),
+    oilGrams: z.number().min(0).max(50).optional(),
   }).strict(),
-  run(tx: Tx, i: { sessionId?: string; recipeId?: string; variantId?: string; date?: string; slot?: SlotKind; servings: number; eatNow: number; actuals?: ActualInput[]; storeIn?: 'fridge' | 'freezer' }) {
+  run(tx: Tx, i: { sessionId?: string; recipeId?: string; variantId?: string; date?: string; slot?: SlotKind; servings: number; eatNow: number; actuals?: ActualInput[]; storeIn?: 'fridge' | 'freezer'; oilGrams?: number }) {
     if (i.eatNow > i.servings) throw new DomainError('EAT_GT_COOK', `做了 ${i.servings} 份，不能吃 ${i.eatNow} 份`);
     let session = i.sessionId ? tx.get<CookSession>('cook_sessions', i.sessionId) : undefined;
     if (i.sessionId && !session) throw new DomainError('NOT_STARTED', '找不到这次做饭');
@@ -363,6 +364,7 @@ const finishCook = {
       id: tx.newId('batch'), recipeId: recipe.id, variantId, cookSessionId: session.id, name: recipe.name,
       portionsTotal: i.servings, portionsRemaining: i.servings, location: storeIn, cookedAt: t,
       useBy: addDays(t, storeIn === 'fridge' ? COOKED_FRIDGE_DAYS : COOKED_FREEZER_DAYS), status: 'active', rev: 0,
+      ...(i.oilGrams !== undefined ? { oilGrams: i.oilGrams } : {}),
     });
     tx.append<PreparedPortionEvent>('prepared_portion_events', { id: tx.newId('ppe'), txId: tx.txId, batchId: batch.id, type: 'create', portionsDelta: i.servings, at: tx.at });
     tx.put<CookSession>('cook_sessions', { ...session, status: 'finished', finishedAt: tx.at, actualServings: i.servings });
@@ -1027,6 +1029,8 @@ const BAG_QTY = 454;
 const OLD_PORTION_QTY: Record<Id, number[]> = {
   pork_loin: [500], beef_slices: [500], frozen_fish: [500], frozen_mixed_veg: [150, 200],
 };
+/** 配饭改成白米糙米各一半之前的默认用量。 */
+const OLD_RICE_QTY = [150, 160, 300];
 
 /**
  * 把新版本目录并进已有数据：只加缺的行，不改用户已有的行。
@@ -1086,6 +1090,13 @@ const syncCatalog = {
         if (cur?.qty != null && OLD_PORTION_QTY[row.ingredientId]?.includes(cur.qty)) tx.put<RecipeIngredient>('recipe_ingredients', { ...cur, qty: row.qty });
       }
       tx.put<Preference>('preferences', { id: PORTION_QTY_MIGRATION, value: true, rev: 0 });
+    }
+    if (!tx.get<Preference>('preferences', RICE_QTY_MIGRATION)) {
+      for (const row of seed.recipe_ingredients.filter((r) => r.ingredientId === 'rice')) {
+        const cur = tx.get<RecipeIngredient>('recipe_ingredients', row.id);
+        if (cur?.qty != null && cur.qty !== row.qty && OLD_RICE_QTY.includes(cur.qty)) tx.put<RecipeIngredient>('recipe_ingredients', { ...cur, qty: row.qty });
+      }
+      tx.put<Preference>('preferences', { id: RICE_QTY_MIGRATION, value: true, rev: 0 });
     }
     tx.summary = `目录新增 ${recipes} 道菜、${missing.length} 种食材`;
     tx.undoable = false;

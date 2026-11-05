@@ -1,6 +1,6 @@
 import { LIBRARY_DEFS, LIBRARY_INGREDIENTS, PANTRY_DEFS } from './library';
 import {
-  AF, expandRecipes, ing, LEFTOVER, meat, ODOR_CHICKEN, ODOR_FISH, SAFE_BEEF, SAFE_CHICKEN, SAFE_FISH, SAFE_PORK, SAFE_SHRIMP, sauce, type RecipeDef,
+  AF, expandRecipes, ing, LEFTOVER, meat, mixRice, ODOR_CHICKEN, ODOR_FISH, SAFE_BEEF, SAFE_CHICKEN, SAFE_FISH, SAFE_PORK, SAFE_SHRIMP, sauce, type RecipeDef,
 } from './seedHelpers';
 import type { Ingredient, IngredientSubstitution, KitchenState, Product, ProteinWeeklyPreference } from './types';
 import { emptyState } from './types';
@@ -295,9 +295,11 @@ const DEFS: RecipeDef[] = [
 export const BAG_QTY_MIGRATION = 'migration:bag_qty_454g';
 /** 同上：瘦肉 454g、冷冻混合蔬菜 283g。 */
 export const PORTION_QTY_MIGRATION = 'migration:portion_qty';
+/** 同上：配饭白米糙米各一半。 */
+export const RICE_QTY_MIGRATION = 'migration:mixed_rice';
 
 export function seedRecipes(): Pick<KitchenState, 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps'> {
-  return expandRecipes([...DEFS, ...LIBRARY_DEFS, ...PANTRY_DEFS]);
+  return expandRecipes([...DEFS, ...LIBRARY_DEFS, ...PANTRY_DEFS].map(mixRice));
 }
 
 export function seedState(): KitchenState {
@@ -314,6 +316,7 @@ export function seedState(): KitchenState {
       { id: 'nextShopDate', value: null, rev: 0 },
       { id: BAG_QTY_MIGRATION, value: true, rev: 0 },
       { id: PORTION_QTY_MIGRATION, value: true, rev: 0 },
+      { id: RICE_QTY_MIGRATION, value: true, rev: 0 },
     ],
   };
 }

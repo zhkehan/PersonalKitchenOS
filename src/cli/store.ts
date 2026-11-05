@@ -15,7 +15,9 @@ import { TABLES, type KitchenState } from '../domain/types';
  * 每天第一次写入前留一份旧文件到 data/backups/。
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const FILE_VERSION = 1;
+export const FILE_VERSION = 2;
+/** 1 → 2：熟菜批次多了可选的 oilGrams，没有就按默认用油算，旧文件不用改内容。 */
+const READABLE_VERSIONS = [1, FILE_VERSION];
 
 export const dataFile = () => process.env.KITCHEN_DATA ?? join(ROOT, 'data', 'kitchen.json');
 const newId = (prefix: string) => `${prefix}_${randomUUID()}`;
@@ -31,7 +33,7 @@ export function loadState(): KitchenState {
   const path = dataFile();
   if (!existsSync(path)) throw new Error(`没有数据文件：${path}。第一次用先运行 init。`);
   const file = JSON.parse(readFileSync(path, 'utf8')) as KitchenFile;
-  if (file.version !== FILE_VERSION) throw new Error(`数据文件版本是 ${file.version}，程序只认 ${FILE_VERSION}`);
+  if (!READABLE_VERSIONS.includes(file.version)) throw new Error(`数据文件版本是 ${file.version}，程序只认 ${FILE_VERSION}`);
   for (const t of TABLES) {
     if (!Array.isArray(file.state?.[t])) throw new Error(`数据文件缺少表 ${t}`);
   }

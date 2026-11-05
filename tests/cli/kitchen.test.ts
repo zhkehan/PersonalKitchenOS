@@ -65,8 +65,19 @@ describe('数据文件', () => {
   it('版本不对时拒绝读取', () => {
     sh('init');
     const f = JSON.parse(readFileSync(dataFile(), 'utf8'));
-    writeFileSync(dataFile(), JSON.stringify({ ...f, version: 2 }));
+    writeFileSync(dataFile(), JSON.stringify({ ...f, version: 99 }));
     expect(() => loadState()).toThrow('版本');
+  });
+
+  it('旧版本的文件能读，下次写入升到新版本，数据不丢', () => {
+    sh('init');
+    sh('run', 'adjustInventory', '{"ingredientId":"egg","qty":4}');
+    const f = JSON.parse(readFileSync(dataFile(), 'utf8'));
+    writeFileSync(dataFile(), JSON.stringify({ ...f, version: 1 }));
+    expect(sh('stock')).toContain('4颗');
+    sh('run', 'adjustInventory', '{"ingredientId":"egg","qty":3}');
+    expect(JSON.parse(readFileSync(dataFile(), 'utf8')).version).toBeGreaterThan(1);
+    expect(sh('stock')).toContain('3颗');
   });
 
   it('写入不留临时文件；每天第一次写入前留备份，同一天不重复', () => {
@@ -189,6 +200,7 @@ describe('推荐不能把没确认的东西说成有', () => {
   it('确认没有的必需调料不算齐：泡菜 out 时 V05 显示缺泡菜，待核对的调料仍不挡菜', () => {
     sh('run', 'adjustInventory', '{"ingredientId":"ground_beef","qty":3,"unit":"lb"}');
     sh('run', 'adjustInventory', '{"ingredientId":"rice","qty":2000}');
+    sh('run', 'adjustInventory', '{"ingredientId":"brown_rice","qty":2000}');
     const v05 = () => { const s = loadState(); return readiness(s, s.recipes.find((r) => r.id === 'V05')!, TODAY); };
     const ready = () => confirmedRecipes(loadState(), TODAY).map((r) => r.recipe.id);
 

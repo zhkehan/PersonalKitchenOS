@@ -229,6 +229,8 @@ export interface PreparedBatch {
   location: 'fridge' | 'freezer';
   cookedAt: LocalDate;
   useBy: LocalDate;
+  /** 这一锅每份实际用油。不写时按默认每份用油估算。 */
+  oilGrams?: number;
   status: 'active' | 'finished' | 'discarded' | 'reverted';
   rev: number;
 }

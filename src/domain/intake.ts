@@ -90,7 +90,7 @@ export function batchServing(state: KitchenState, batch: PreparedBatch): Estimat
       uncounted.push(nameOf(state, r.ingredientId));
     }
   }
-  return { macros: addMacros(scaleMacros(macros, 1 / batch.portionsTotal), oilMacros(oilGramsFor(state, batch.recipeId))), counted, uncounted };
+  return { macros: addMacros(scaleMacros(macros, 1 / batch.portionsTotal), oilMacros(batch.oilGrams ?? oilGramsFor(state, batch.recipeId))), counted, uncounted };
 }
 
 /**

@@ -24,6 +24,49 @@ const buy = () => commit(db, NOON, 'confirmPurchase', { lines: [
   { ingredientId: 'yellow_onion', bought: true, qty: 300 },
 ] });
 
+/** 删掉菜谱库，还原第一版已安装的数据库。 */
+async function toFirstRelease() {
+  const s = await loadState(db);
+  const library = new Set(s.recipes.filter((r) => r.tier === 'library').map((r) => r.id));
+  await db.store('recipes').bulkDelete([...library]);
+  await db.store('recipe_variants').bulkDelete(s.recipe_variants.filter((v) => library.has(v.recipeId)).map((v) => v.id));
+  await db.store('recipe_ingredients').bulkDelete(s.recipe_ingredients.filter((r) => library.has(r.recipeId)).map((r) => r.id));
+  await db.store('recipe_steps').bulkDelete(s.recipe_steps.filter((x) => library.has(x.variantId.split(':')[0])).map((x) => x.id));
+  await db.store('ingredients').bulkDelete(s.ingredients.filter((i) => i.catalogOnly).map((i) => i.id));
+}
+
+describe('目录升级', () => {
+  it('已安装的数据库：真实落库后新增菜谱，库存和流水不变，重启不重复写', async () => {
+    await buy();
+    await commit(db, NOON, 'finishCook', { recipeId: 'R01', date: TODAY, slot: 'lunch', servings: 2, eatNow: 1 });
+    await toFirstRelease();
+    const before = await loadState(db);
+    expect(before.recipes.some((r) => r.tier === 'library')).toBe(false);
+
+    await commit(db, NOON, 'syncCatalog', {});
+    const after = await loadState(db);
+    expect(after.recipes.filter((r) => r.tier === 'library').length).toBeGreaterThan(20);
+    expect(after.inventory_lots).toEqual(before.inventory_lots);
+    expect(after.inventory_events).toEqual(before.inventory_events);
+    expect(after.prepared_batches).toEqual(before.prepared_batches);
+    expect(after.meal_slots).toEqual(before.meal_slots);
+
+    const audits = after.audit_events.length;
+    await commit(db, NOON, 'syncCatalog', {});
+    expect((await loadState(db)).audit_events).toHaveLength(audits);
+  });
+
+  it('恢复第一版的备份后，菜谱库自动补上，库存来自备份', async () => {
+    await buy();
+    await toFirstRelease();
+    const file = JSON.parse(JSON.stringify(await exportBackup(db, NOON)));
+    await restoreBackup(db, file, NOON);
+    const s = await loadState(db);
+    expect(s.recipes.some((r) => r.id === 'L07')).toBe(true);
+    expect(s.inventory_lots.find((l) => l.ingredientId === 'chicken_breast')?.qty).toBe(1000);
+  });
+});
+
 describe('IndexedDB 事务', () => {
   it('首次打开只有目录，没有库存；重复 seed 不重复写', async () => {
     await ensureSeeded(db);
@@ -37,7 +80,7 @@ describe('IndexedDB 事务', () => {
     const r = await commit(db, NOON, 'finishCook', { recipeId: 'R01', date: TODAY, slot: 'lunch', servings: 2, eatNow: 1 });
     expect(r.summary).toContain('本餐吃 1 份，剩 1 份');
     const s = await loadState(db);
-    expect(s.inventory_lots.find((l) => l.ingredientId === 'chicken_breast')?.qty).toBe(500);
+    expect(s.inventory_lots.find((l) => l.ingredientId === 'chicken_breast')?.qty).toBe(546);
     expect(s.prepared_batches[0].portionsRemaining).toBe(1);
     expect(s.consumption_events).toHaveLength(1);
   });
@@ -71,7 +114,7 @@ describe('IndexedDB 事务', () => {
     expect([a.deduped, b.deduped].filter(Boolean)).toHaveLength(1);
     const s = await loadState(db);
     expect(s.prepared_batches).toHaveLength(1);
-    expect(s.inventory_lots.find((l) => l.ingredientId === 'chicken_breast')?.qty).toBe(500);
+    expect(s.inventory_lots.find((l) => l.ingredientId === 'chicken_breast')?.qty).toBe(546);
   });
 
   it('撤销写入补偿流水，原流水保留', async () => {
@@ -155,7 +198,7 @@ describe('33 备份与恢复', () => {
     await commit(db, NOON, 'finishCook', { recipeId: 'R01', date: TODAY, slot: 'lunch', servings: 2, eatNow: 1 });
     await commit(db, NOON, 'recordSnack', { label: '=HYPERLINK("x")' });
     const s = await loadState(db);
-    expect(inventoryCsv(s)).toContain('鸡胸肉,500,g,fridge');
+    expect(inventoryCsv(s)).toContain('鸡胸肉,546,g,fridge');
     expect(inventoryCsv(s)).toContain('鸡蛋,未知');
     expect(eventsCsv(s)).toContain('consume_raw');
     expect(consumptionCsv(s)).toContain(`'=HYPERLINK`);

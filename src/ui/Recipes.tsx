@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { localDate } from '../domain/dates';
+import { recipeServing } from '../domain/intake';
+import { macroLine } from '../domain/nutrition';
 import { checkRecipe } from '../domain/recommend';
 import type { Protein, Recipe } from '../domain/types';
 import type { Nav } from './App';
 import { Screen } from './components';
+import { Reference } from './Reference';
 import { useKitchen } from './store';
 
 const PROTEINS: [Protein | 'all', string][] = [['all', '全部'], ['chicken', '鸡'], ['beef', '牛'], ['pork', '猪'], ['fish', '鱼'], ['shrimp', '虾']];
@@ -15,6 +18,8 @@ export function Recipes({ nav }: { nav: Nav }) {
   const [canMake, setCanMake] = useState(false);
   const [flavor, setFlavor] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [reference, setReference] = useState(false);
   const [detail, setDetail] = useState<Recipe | null>(null);
   const today = localDate(now());
 
@@ -29,7 +34,8 @@ export function Recipes({ nav }: { nav: Nav }) {
   const flavors = useMemo(() => [...new Set(state.recipes.filter((r) => r.tier !== 'snack').flatMap((r) => r.flavors))], [state.recipes]);
 
   const core = list.filter((r) => r.tier === 'core');
-  const more = list.filter((r) => r.tier !== 'core');
+  const more = list.filter((r) => r.tier === 'variant' || r.tier === 'backup');
+  const library = list.filter((r) => r.tier === 'library');
   const live = detail ? state.recipes.find((r) => r.id === detail.id) ?? null : null;
 
   return (
@@ -52,8 +58,13 @@ export function Recipes({ nav }: { nav: Nav }) {
       {more.length > 0 && (showAll
         ? <ul className="recipe-list">{more.map((r) => <RecipeRow key={r.id} r={r} onOpen={() => setDetail(r)} />)}</ul>
         : <button className="link" onClick={() => setShowAll(true)}>再看 {more.length} 道变体和备选</button>)}
+      {library.length > 0 && (showLibrary
+        ? <><h3>我的菜谱库</h3><ul className="recipe-list">{library.map((r) => <RecipeRow key={r.id} r={r} onOpen={() => setDetail(r)} />)}</ul></>
+        : <button className="link" onClick={() => setShowLibrary(true)}>我的菜谱库 {library.length} 道</button>)}
       {list.length === 0 && <p className="hint">没有符合条件的菜。</p>}
+      <button className="link" onClick={() => setReference(true)}>酱汁、腌料和营养资料</button>
       {live && <RecipeDetail recipe={live} nav={nav} onClose={() => setDetail(null)} />}
+      {reference && <Reference onClose={() => setReference(false)} />}
     </div>
   );
 }
@@ -78,6 +89,9 @@ function RecipeDetail({ recipe, nav, onClose }: { recipe: Recipe; nav: Nav; onCl
   const variants = state.recipe_variants.filter((v) => v.recipeId === recipe.id);
   const rows = state.recipe_ingredients.filter((r) => r.recipeId === recipe.id && r.qty !== null);
   const [qty, setQty] = useState<Record<string, string>>({});
+  const defaultVariant = variants.find((v) => v.isDefault) ?? variants[0];
+  const steps = state.recipe_steps.filter((s) => s.variantId === defaultVariant?.id).sort((a, b) => a.order - b.order);
+  const serving = recipeServing(state, recipe.id);
 
   const save = () => run('updateRecipe', {
     recipeId: recipe.id, notes,
@@ -94,6 +108,20 @@ function RecipeDetail({ recipe, nav, onClose }: { recipe: Recipe; nav: Nav; onCl
         <h3>食材（{recipe.baseServings} 份）</h3>
         <ul className="ing-list">{check.lines.map((l) => <li key={l.ingredientId}><span>{l.name}{l.role === 'optional' ? '（可选）' : ''}</span><span>{l.label}</span></li>)}</ul>
       </section>
+      {serving.counted > 0 && (
+        <section>
+          <h3>一份大约</h3>
+          <p>{macroLine(serving.macros)}</p>
+          {serving.extras.map((e) => <p key={e.name} className="meta">加{e.name}：再加 {macroLine(e.macros)}</p>)}
+          <p className="hint">按生重估算，{serving.oilGrams > 0 ? `含 ${serving.oilGrams}g 烹调油，` : ''}不含调味料{serving.uncounted.length > 0 ? `，也不含${serving.uncounted.join('、')}` : ''}。</p>
+        </section>
+      )}
+      <details>
+        <summary>看做法</summary>
+        {recipe.cutSize && <p className="meta">{recipe.cutSize}</p>}
+        <ol className="ref-steps">{steps.map((s) => <li key={s.id}>{s.text}</li>)}</ol>
+        <p className="hint">{recipe.safetyTip}</p>
+      </details>
       <section>
         <h3>轻反馈</h3>
         <div className="row">

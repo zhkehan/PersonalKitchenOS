@@ -1,6 +1,6 @@
 import { TABLES, type InventoryLot, type KitchenState, type Row, type TableName } from '../domain/types';
 import { localDate } from '../domain/dates';
-import { type KitchenDB, loadState, newId, SCHEMA_VERSION } from './db';
+import { commit, type KitchenDB, loadState, newId, SCHEMA_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'personal-kitchen-os-backup';
 
@@ -88,6 +88,8 @@ export async function restoreBackup(db: KitchenDB, raw: unknown, now: Date): Pro
     }
     await db.store('backup_metadata').put({ id: newId('bk'), at: now.toISOString(), schemaVersion: SCHEMA_VERSION, kind: 'restore' });
   });
+  // 旧备份里没有后来加入的菜谱，恢复后补上。
+  await commit(db, now, 'syncCatalog', {});
 }
 
 const CSV_SAFE = /^[=+\-@\t\r]/;

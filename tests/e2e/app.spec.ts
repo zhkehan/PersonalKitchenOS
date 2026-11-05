@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { encodeStockLink } from '../../src/domain/stockLink';
 
 const NOON = new Date('2026-11-04T20:00:00Z'); // 周三 12:00 PST
 
@@ -43,7 +44,7 @@ test('首屏：1 主推荐、最多 2 备选，没有假库存，明确待核对
   expect(await page.locator('.alt').count()).toBeLessThanOrEqual(2);
   await expect(primary(page)).toContainText('数量待核对');
   const text = await stockText(page);
-  expect(text).not.toMatch(/500g|227g/);
+  expect(text).not.toMatch(/500g|454g|227g/);
   expect(text).toContain('现在没有熟菜');
 });
 
@@ -55,18 +56,18 @@ test('核心闭环：入库 → 推荐 → 开始做 → 做完并开吃 → 剩
   await primary(page).getByRole('button', { name: '开始做' }).click();
   await page.getByRole('button', { name: '做完并开吃' }).click();
   await expect(toast(page)).toContainText('本餐吃 1 份，剩 1 份');
-  await expect(toast(page)).toContainText('鸡胸肉500g');
+  await expect(toast(page)).toContainText('鸡胸肉454g');
   await page.getByRole('button', { name: '好吃' }).click();
 
   await expect(page.getByRole('button', { name: '吃掉这份' })).toBeVisible();
   const before = await stockText(page);
-  expect(before).toContain('500g');
+  expect(before).toContain('546g');
   expect(before).toContain('1 份');
 
   await page.getByRole('button', { name: '吃掉这份' }).click();
   await expect(toast(page)).toContainText('生料不变');
   const after = await stockText(page);
-  expect(after).toContain('500g');
+  expect(after).toContain('546g');
   expect(after).toContain('现在没有熟菜');
 });
 
@@ -88,7 +89,7 @@ test('狂点「做完并开吃」只记一次', async ({ page }) => {
   const done = page.getByRole('button', { name: '做完并开吃' });
   await done.evaluate((b: HTMLButtonElement) => { b.click(); b.click(); b.click(); });
   await page.getByRole('button', { name: '跳过' }).click();
-  expect(await stockText(page)).toContain('500g');
+  expect(await stockText(page)).toContain('546g');
 });
 
 test('一键「午餐外食」不依赖 AI：只改计划，可撤销', async ({ page }) => {
@@ -237,16 +238,31 @@ test('新商品：目录没有时当场新建，买到后入库', async ({ page 
   await open(page);
   await tab(page, '采购');
   await page.getByRole('button', { name: '生成购物清单' }).click();
-  await page.getByLabel('添加商品').fill('香蕉');
+  await page.getByLabel('添加商品').fill('山药');
   await page.getByRole('button', { name: '添加', exact: true }).click();
-  await page.getByLabel('英文或别名').fill('banana');
+  await page.getByLabel('英文或别名').fill('yam');
   await page.getByLabel('包装单位').selectOption('根');
   await page.getByRole('button', { name: '加入目录和清单' }).click();
-  await expect(toast(page)).toContainText('清单加入 香蕉');
+  await expect(toast(page)).toContainText('清单加入 山药');
+  await page.getByRole('listitem').filter({ hasText: '山药' }).first().getByRole('checkbox').check();
+  await page.getByLabel('山药实际数量').fill('5');
+  await page.getByRole('button', { name: /确认入库/ }).click();
+  await expect(toast(page)).toContainText('山药5根');
+});
+
+test('备用食材不用新建：采购时直接加进清单，买了就进库存', async ({ page }) => {
+  await open(page);
+  await tab(page, '采购');
+  await page.getByRole('button', { name: '生成购物清单' }).click();
+  await page.getByLabel('添加商品').fill('香蕉');
+  await page.getByRole('button', { name: '添加', exact: true }).click();
+  await expect(page.getByRole('button', { name: '加入目录和清单' })).toHaveCount(0);
   await page.getByRole('listitem').filter({ hasText: '香蕉' }).first().getByRole('checkbox').check();
   await page.getByLabel('香蕉实际数量').fill('5');
   await page.getByRole('button', { name: /确认入库/ }).click();
   await expect(toast(page)).toContainText('香蕉5根');
+  await tab(page, '库存');
+  await expect(page.locator('.stock button', { hasText: '香蕉' })).toBeVisible();
 });
 
 test('库存：快速增减、解冻一部分、总量守恒', async ({ page }) => {
@@ -414,4 +430,119 @@ test('首屏截图', async ({ page }) => {
   await buy(page, { 鸡胸肉: { qty: '1000', loc: 'fridge' }, 褐蘑菇: {}, 黄洋葱: { qty: '300' } });
   await page.getByRole('button', { name: '关闭提示' }).click();
   await page.screenshot({ path: 'test-results/home.png', fullPage: true });
+});
+
+test('菜谱库和资料：默认收起，能看做法，不打扰首页和核对', async ({ page }) => {
+  await open(page);
+  await expect(primary(page)).not.toContainText('三杯鸡');
+  await tab(page, '库存');
+  await expect(page.getByRole('button', { name: /备用食材/ })).toBeVisible();
+  await page.getByRole('button', { name: '一次核对' }).click();
+  await expect(page.getByRole('heading', { name: '一次核对' })).toBeVisible();
+  await expect(page.getByText('鸡肝', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('鸡胸肉', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '返回' }).click();
+
+  await tab(page, '菜谱');
+  await expect(page.getByText('三杯鸡')).toHaveCount(0);
+  await page.getByRole('button', { name: /我的菜谱库 \d+ 道/ }).click();
+  await page.getByRole('button', { name: /三杯鸡/ }).click();
+  await page.getByText('看做法').click();
+  await expect(page.getByText('香油爆香蒜末')).toBeVisible();
+  await expect(page.getByText('鸡肉中心 74°C', { exact: false }).first()).toBeVisible();
+  await page.getByRole('button', { name: '返回' }).click();
+
+  await page.getByRole('button', { name: '酱汁、腌料和营养资料' }).click();
+  await page.getByRole('button', { name: '酱汁', exact: true }).click();
+  await expect(page.getByText('宫保汁', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '腌料', exact: true }).click();
+  await expect(page.getByText('按一天的量分袋').first()).toBeVisible();
+  await page.getByRole('button', { name: '营养', exact: true }).click();
+  await expect(page.getByText('鹰嘴豆（干豆自煮，熟重）')).toBeVisible();
+  await expect(page.getByText('牛肉碎（93/7，生重）')).toBeVisible();
+});
+
+test('营养记录：只算吃掉的份数，配饭选了才算，撤销后回到空', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: '营养记录' }).click();
+  await expect(page.getByText('今天还没有吃过的记录。')).toBeVisible();
+  await page.getByRole('button', { name: '返回' }).click();
+
+  await tab(page, '菜谱');
+  await page.getByRole('button', { name: /黑椒蘑菇鸡丁/ }).click();
+  await expect(page.getByText('368 kcal · 碳水 6g · 蛋白质 54g · 脂肪 13g')).toBeVisible();
+  await expect(page.getByText(/含 10g 烹调油/)).toBeVisible();
+  await expect(page.getByText(/加大米：再加 274 kcal/)).toBeVisible();
+  await page.getByRole('button', { name: '开始做' }).click();
+
+  await page.getByRole('button', { name: /加 大米 150g/ }).click();
+  await expect(page.getByRole('button', { name: /✓ 大米 150g/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '做完并开吃' }).click();
+  await page.getByRole('button', { name: '跳过' }).click();
+
+  await tab(page, '今天');
+  await page.getByRole('button', { name: '营养记录' }).click();
+  const today = page.getByRole('region', { name: '今天' });
+  // 吃 1 份（共 2 份）。蛋白质 54.2 + 5.3，碳水 6.3 + 60，脂肪 2.8 + 0.6 + 油 10，热量 279 + 274 + 油 89。
+  await expect(today.getByText('642 kcal · 碳水 66g · 蛋白质 59g · 脂肪 13g')).toBeVisible();
+  await expect(today.getByRole('definition').filter({ hasText: '59g' })).toBeVisible();
+  // 用油减到 5g：热量少 44.5，脂肪少 5。
+  await page.getByRole('button', { name: '减少每份默认用油（g）' }).click();
+  await expect(today.getByText('597 kcal · 碳水 66g · 蛋白质 59g · 脂肪 8g')).toBeVisible();
+  await page.getByRole('button', { name: '返回' }).click();
+
+  await page.getByRole('button', { name: '记错了？' }).click();
+  await page.getByRole('button', { name: /其实没吃/ }).click();
+  await page.getByRole('button', { name: '营养记录' }).click();
+  await expect(page.getByText('今天还没有吃过的记录。')).toBeVisible();
+});
+
+test('营养记录：外食说明算不出来，不当作没吃', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: '今天外食 / 只吃一顿' }).click();
+  await page.getByRole('button', { name: '午餐外食' }).click();
+  await page.getByRole('button', { name: '营养记录' }).click();
+  await expect(page.getByText('没算进去：午餐外食')).toBeVisible();
+});
+
+test('库存链接：确认前不写入，确认后入库，同一份不能导入两次，坏链接有提示', async ({ page }) => {
+  const link = encodeStockLink({ id: 'e2e-1', stock: [['ground_beef', 7, 'lb'], ['egg', 4]], have: ['cumin'] });
+  await page.clock.setFixedTime(NOON);
+  await page.goto(`/#stock=${link}`);
+  const sheet = page.getByRole('dialog', { name: '导入库存' });
+  await expect(sheet.getByText('7lb')).toBeVisible();
+  await expect(sheet.getByText('孜然粉')).toBeVisible();
+  await expect(page).not.toHaveURL(/stock=/); // 清单不留在地址栏
+
+  await page.getByRole('button', { name: '返回' }).click();
+  expect(await stockText(page)).not.toContain('牛肉碎');
+
+  await page.goto(`/#stock=${link}`);
+  await page.reload();
+  await page.goto('/');
+  await page.goto(`/#stock=${link}`);
+  await page.getByRole('button', { name: '确认导入 3 项' }).click();
+  await expect(toast(page)).toContainText('已导入 2 项库存、1 种调料');
+  const text = await stockText(page);
+  expect(text).toContain('牛肉碎');
+  expect(text).toContain('3.175kg');
+  expect(text).toContain('4颗');
+
+  await page.goto('/');
+  await page.goto(`/#stock=${link}`);
+  await expect(page.getByRole('dialog', { name: '导入库存' })).toHaveCount(0);
+  await expect(toast(page)).toContainText('已经导入过了');
+
+  await page.goto('/#stock=abc');
+  await expect(toast(page)).toContainText('打不开');
+});
+
+test('从菜谱库开始做：做完只扣一次原料', async ({ page }) => {
+  await open(page);
+  await tab(page, '菜谱');
+  await page.getByRole('button', { name: /我的菜谱库/ }).click();
+  await page.getByRole('button', { name: /BBQ烤鸡胸/ }).click();
+  await expect(page.getByText(/烤箱：约 25 分钟/)).toBeVisible();
+  await page.getByRole('button', { name: '开始做' }).click();
+  await expect(page.getByText(/预热 200°C/)).toBeVisible();
 });

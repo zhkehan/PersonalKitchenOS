@@ -188,3 +188,16 @@ summary { color: var(--primary); min-height: 40px; display: flex; align-items: c
 .toast-warn { font-weight: 600; margin-top: .15rem; }
 .toast-actions { display: flex; gap: 4px; flex: 0 0 auto; }
 .toast-actions button { pointer-events: auto; background: none; border: 0; color: inherit; min-width: 40px; min-height: 40px; font-weight: 700; text-decoration: underline; }
+
+.ref-list { list-style: none; margin: 0; padding: 0; }
+.ref-list li { display: flex; flex-direction: column; gap: 2px; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+.ref-table { width: 100%; border-collapse: collapse; font-size: .9rem; margin: .4rem 0; }
+.ref-table th, .ref-table td { text-align: left; padding: .3rem .4rem .3rem 0; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.ref-role { display: block; color: var(--muted); font-size: .8rem; }
+.ref-steps { padding-left: 1.3rem; margin: .4rem 0; }
+.ref-steps li { padding: .15rem 0; }
+
+.macro-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: .4rem 0; }
+.macro-grid div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: .45rem .3rem; text-align: center; }
+.macro-grid dt { color: var(--muted); font-size: .8rem; }
+.macro-grid dd { margin: 0; font-size: 1.15rem; font-weight: 600; }

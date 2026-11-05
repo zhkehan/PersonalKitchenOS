@@ -5,7 +5,7 @@ export type IsoTime = string;
 export type SlotKind = 'lunch' | 'dinner' | 'snack';
 export type Location = 'fridge' | 'freezer' | 'pantry';
 export type Protein = 'chicken' | 'beef' | 'pork' | 'fish' | 'shrimp' | 'egg' | 'none';
-export type Equipment = 'pan' | 'airfryer' | 'pot' | 'steamer';
+export type Equipment = 'pan' | 'airfryer' | 'pot' | 'steamer' | 'oven';
 export type Level = 'have' | 'low' | 'out' | 'unconfirmed';
 /** 数量真实性：区分「提到过」「确认有但不知多少」「确认数量」「没有」。 */
 export type Reality = 'mentioned' | 'confirmed_present_unknown_qty' | 'confirmed_qty' | 'out';
@@ -37,6 +37,8 @@ export interface Ingredient {
   markedOut: boolean;
   /** 只提到过、可能有（例如黑椒酱）。 */
   maybe?: boolean;
+  /** 菜谱库带来的备用食材：有了批次才进库存列表，平时不要求核对。 */
+  catalogOnly?: boolean;
   note?: string;
   rev: number;
 }
@@ -94,7 +96,8 @@ export interface InventoryEvent {
 export interface Recipe {
   id: Id;
   name: string;
-  tier: 'core' | 'variant' | 'backup' | 'snack';
+  /** library = 用户自己的菜谱库，不进自动推荐和 7 天轮换。 */
+  tier: 'core' | 'variant' | 'backup' | 'snack' | 'library';
   /** 变体对应的固定主菜。 */
   parentId: Id | null;
   protein: Protein;
@@ -252,6 +255,8 @@ export interface ConsumptionEvent {
   recipeId: Id | null;
   portions: number;
   label: string;
+  /** 加餐的用量（规范单位），一份的量。没说数量时没有，营养上算不出来。 */
+  qty?: number;
   reverses?: Id;
 }
 

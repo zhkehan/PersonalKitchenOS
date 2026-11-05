@@ -26,6 +26,7 @@ export function Cook({ request, onClose }: { request: CookRequest; onClose: () =
   const [servings, setServings] = useState(request.servings);
   const [eatNow, setEatNow] = useState(request.snack ? request.servings : 1);
   const [actuals, setActuals] = useState<Record<string, string>>({});
+  const [extras, setExtras] = useState<string[]>([]);
   const sessionRef = useRef<string | null>(request.sessionId ?? null);
   const [feedbackFor, setFeedbackFor] = useState<string | null>(null);
 
@@ -45,6 +46,7 @@ export function Cook({ request, onClose }: { request: CookRequest; onClose: () =
   const steps = state.recipe_steps.filter((s) => s.variantId === variantId).sort((a, b) => a.order - b.order);
   const check = useMemo(() => checkRecipe(state, recipe.id, servings, today), [state, recipe.id, servings, today]);
   const quantified = check.lines.filter((l) => l.need !== null && l.role === 'required');
+  const optional = check.lines.filter((l) => l.need !== null && l.role === 'optional');
 
   const leave = async () => {
     const id = sessionRef.current;
@@ -53,7 +55,10 @@ export function Cook({ request, onClose }: { request: CookRequest; onClose: () =
   };
 
   const finish = async (eat: number) => {
-    const list = Object.entries(actuals).filter(([, v]) => v !== '').map(([ingredientId, v]) => ({ ingredientId, qty: Number(v) }));
+    const list = [
+      ...Object.entries(actuals).filter(([, v]) => v !== '').map(([ingredientId, v]) => ({ ingredientId, qty: Number(v) })),
+      ...optional.filter((l) => extras.includes(l.ingredientId)).map((l) => ({ ingredientId: l.ingredientId, qty: l.need! })),
+    ];
     const id = sessionRef.current;
     const result = await run('finishCook', {
       ...(id && id !== 'pending' ? { sessionId: id } : { recipeId: recipe.id, variantId }),
@@ -125,6 +130,18 @@ export function Cook({ request, onClose }: { request: CookRequest; onClose: () =
             </li>
           ))}
         </ul>
+        {optional.length > 0 && (
+          <div className="chips" role="group" aria-label="这次加了">
+            {optional.map((l) => {
+              const on = extras.includes(l.ingredientId);
+              return (
+                <button key={l.ingredientId} className={`chip${on ? ' chip-on' : ''}`} aria-pressed={on} onClick={() => setExtras(on ? extras.filter((x) => x !== l.ingredientId) : [...extras, l.ingredientId])}>
+                  {on ? '✓ ' : '加 '}{l.name} {l.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {check.blocked && <p className="unverified">{check.blocked}，记录上不够，但你实际有的话仍可以做，做完会提示核对。</p>}
         <p className="hint">调味：{recipe.seasoningTemplate}。高盐高油的先少放。</p>
       </section>

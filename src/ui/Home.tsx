@@ -6,7 +6,7 @@ import { Assistant } from './Assistant';
 import { Sheet } from './components';
 import { useKitchen } from './store';
 
-const EQUIP: Record<string, string> = { pan: '炒锅', airfryer: '空气炸锅', pot: '小锅', steamer: '蒸锅' };
+const EQUIP: Record<string, string> = { pan: '炒锅', airfryer: '空气炸锅', pot: '小锅', steamer: '蒸锅', oven: '烤箱' };
 
 export function Home({ nav }: { nav: Nav }) {
   const { state, now, run } = useKitchen();
@@ -82,6 +82,7 @@ export function Home({ nav }: { nav: Nav }) {
 
       <div className="home-links">
         <button className="link" onClick={nav.plan}>14 天计划</button>
+        <button className="link" onClick={nav.nutrition}>营养记录</button>
         <button className="link" onClick={() => setSheet('fix')}>记错了？</button>
       </div>
 

@@ -95,6 +95,7 @@ export function KitchenProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         await ensureSeeded(db);
+        await commit(db, new Date(), 'syncCatalog', {});
         await commit(db, new Date(), 'syncPlan', {});
         if (alive) await refresh();
       } catch (e) {

@@ -171,7 +171,7 @@ describe('A. 真实性与库存', () => {
     k.run('finishCook', { recipeId: 'R02', date: TODAY, slot: 'lunch', servings: 2, eatNow: 1 });
     expect(k.qty('chicken_breast')).toBe(0);
     expect(k.last.warnings.join('')).toContain('差额');
-    expect(k.state.cook_session_ingredients.find((r) => r.ingredientId === 'chicken_breast')?.shortfall).toBe(400);
+    expect(k.state.cook_session_ingredients.find((r) => r.ingredientId === 'chicken_breast')?.shortfall).toBe(354);
     k.assertLedger();
   });
 

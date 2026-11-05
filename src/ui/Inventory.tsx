@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { friendlyDate, localDate, shortDate } from '../domain/dates';
 import { LOCATION_LABEL, stockOf } from '../domain/inventory';
+import { nutritionFor, nutritionLine } from '../domain/nutrition';
 import type { Ingredient, IngredientCategory, InventoryLot, Level, PreparedBatch } from '../domain/types';
 import { formatQty } from '../domain/units';
 import { RealityTag, Screen, Sheet } from './components';
@@ -18,13 +19,17 @@ export function Inventory({ calibrating, setCalibrating }: { calibrating: boolea
   const [open, setOpen] = useState<Ingredient | null>(null);
   const [batch, setBatch] = useState<PreparedBatch | null>(null);
   const [showUnknown, setShowUnknown] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
   const today = localDate(now());
   const batches = state.prepared_batches.filter((b) => b.status === 'active');
-  const seasonings = state.ingredients.filter((i) => i.unit === 'level');
+  // 备用食材没有真实记录时不占首屏，也不算待核对。
+  const spare = (i: Ingredient) => !!i.catalogOnly && stockOf(state, i.id).reality === 'mentioned';
+  const seasonings = state.ingredients.filter((i) => i.unit === 'level' && !spare(i));
+  const spareItems = state.ingredients.filter(spare);
 
   const groups = useMemo(() => GROUPS.map(([cats, label]) => ({
     label,
-    items: state.ingredients.filter((i) => cats.includes(i.category) && i.unit !== 'level').map((ing) => ({ ing, stock: stockOf(state, ing.id) })),
+    items: state.ingredients.filter((i) => cats.includes(i.category) && i.unit !== 'level' && !spare(i)).map((ing) => ({ ing, stock: stockOf(state, ing.id) })),
   })), [state]);
   const known = (r: string) => r !== 'mentioned';
 
@@ -102,6 +107,24 @@ export function Inventory({ calibrating, setCalibrating }: { calibrating: boolea
         </ul>
       )}
 
+      {spareItems.length > 0 && (
+        <button className="link" onClick={() => setShowCatalog(!showCatalog)}>{showCatalog ? '收起备用食材' : `备用食材 ${spareItems.length} 种`}</button>
+      )}
+      {showCatalog && (
+        <ul className="stock">
+          {spareItems.map((i) => (i.unit === 'level' ? (
+            <li key={i.id} className="level-row">
+              <span>{i.name}</span>
+              <select aria-label={`${i.name}状态`} value={i.level ?? 'unconfirmed'} onChange={(e) => run('setSeasoningLevel', { ingredientId: i.id, level: e.target.value }, { silent: true })}>
+                {LEVELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </li>
+          ) : (
+            <li key={i.id}><button onClick={() => setOpen(i)}><span>{i.name}</span></button></li>
+          )))}
+        </ul>
+      )}
+
       {liveIng && <IngredientSheet ing={liveIng} today={today} onClose={() => setOpen(null)} />}
       {liveBatch && (
         <Sheet title={liveBatch.name} onClose={() => setBatch(null)}>
@@ -129,6 +152,7 @@ function IngredientSheet({ ing, today, onClose }: { ing: Ingredient; today: stri
   return (
     <Sheet title={ing.name} onClose={onClose}>
       {ing.note && <p className="hint">{ing.note}</p>}
+      {nutritionFor(ing.id).map((n) => <p key={n.name} className="meta">{n.name} {n.serving}：{nutritionLine(n)}</p>)}
       {stock.lots.length === 0 && <p className="meta">{stock.reality === 'out' ? '确认没有了。' : '还没有批次记录。'}</p>}
       <ul className="lots">
         {stock.lots.map((l) => <LotRow key={l.id} lot={l} ing={ing} today={today} onAct={act} />)}
@@ -186,7 +210,7 @@ function LotRow({ lot, ing, today, onAct }: { lot: InventoryLot; ing: Ingredient
 function Calibrate({ onClose }: { onClose: () => void }) {
   const { state, run } = useKitchen();
   const [answers, setAnswers] = useState<Record<string, { present: boolean; qty: string }>>({});
-  const pending = state.ingredients.filter((i) => stockOf(state, i.id).reality === 'mentioned');
+  const pending = state.ingredients.filter((i) => !i.catalogOnly && stockOf(state, i.id).reality === 'mentioned');
   const set = (id: string, present: boolean) => setAnswers({ ...answers, [id]: { present, qty: answers[id]?.qty ?? '' } });
   const count = Object.keys(answers).length;
 

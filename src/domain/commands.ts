@@ -7,11 +7,13 @@ import {
   changeSlot, commitPlanVersion, currentMeal, defaultVariantId, ensurePlan, planHorizonEnd, pref, pullForward, recipeOf,
   reflow, setPref, slotId, slotLabel, slotSort, swapDays, SLOT_LABEL,
 } from './planner';
+import { COOKING_OIL_PREF } from './intake';
+import { BAG_QTY_MIGRATION, seedState } from './seed';
 import { forecastShopping } from './shopping';
 import { DomainError, Tx } from './tx';
 import type {
   ConsumptionEvent, CookSession, CookSessionIngredient, Id, Ingredient, InventoryEvent, InventoryLot, KitchenState, Level,
-  Location, MealSlot, PreparedBatch, PreparedPortionEvent, PurchaseConfirmation, Recipe, ScheduleConstraint,
+  Location, MealSlot, Preference, PreparedBatch, PreparedPortionEvent, PurchaseConfirmation, Recipe, RecipeIngredient, ScheduleConstraint,
   ShoppingItem, ShoppingList, SlotKind,
 } from './types';
 import { formatQty, roundQty, toCanonical } from './units';
@@ -690,6 +692,47 @@ const setSeasoningLevel = {
   },
 };
 
+/** 营养估算用的每份烹调油。只影响估算，不碰库存。 */
+const setCookingOil = {
+  schema: z.object({ grams: z.number().min(0).max(50) }).strict(),
+  run(tx: Tx, i: { grams: number }) {
+    setPref(tx, COOKING_OIL_PREF, i.grams);
+    tx.summary = `每份默认用油改为 ${i.grams}g`;
+    tx.undoable = false;
+  },
+};
+
+/** 库存链接：一次设好多项总量。一个事务，撤销时整批退回。 */
+const importStock = {
+  schema: z.object({
+    entries: z.array(z.object({ ingredientId: z.string(), qty: z.number(), unit: z.string().optional(), add: z.literal(true).optional() }).strict()).max(200),
+    have: z.array(z.string()).max(200),
+  }).strict(),
+  run(tx: Tx, i: { entries: { ingredientId: string; qty: number; unit?: string; add?: true }[]; have: string[] }) {
+    for (const e of i.entries) {
+      if (e.add) changeStock(tx, e);
+      else adjustInventory.run(tx, adjustInventory.schema.parse({ ingredientId: e.ingredientId, qty: e.qty, ...(e.unit ? { unit: e.unit } : {}) }));
+    }
+    for (const id of i.have) setSeasoningLevel.run(tx, { ingredientId: id, level: 'have' });
+    reflow(tx, '导入库存');
+    tx.summary = `已导入 ${i.entries.length} 项库存、${i.have.length} 种调料`;
+  },
+};
+
+/** 增加是新批次，不碰数量未知的批次；减少走先到期先用，扣到 0 为止，差额提示核对。 */
+function changeStock(tx: Tx, e: { ingredientId: string; qty: number; unit?: string }) {
+  const ing = ingredientById(tx.state, e.ingredientId);
+  const c = e.unit ? toCanonical(Math.abs(e.qty), e.unit, ing) : { qty: Math.abs(e.qty) };
+  if (!c) throw new DomainError('NEEDS_SPEC', `还不知道 1${e.unit}${ing.name} 有多重`);
+  if (e.qty < 0) {
+    const alloc = deduct(tx, ing.id, c.qty, '库存链接', 'adjust');
+    if (alloc.shortfall > 0) tx.warnings.push(`${ing.name}库存记录不足，差额待核对`);
+    return;
+  }
+  createLot(tx, { ingredient: ing, qty: c.qty, location: ing.defaultLocation, confidence: 'confirmed', eventType: 'adjust', note: '库存链接' });
+  if (ing.markedOut) tx.put<Ingredient>('ingredients', { ...tx.get<Ingredient>('ingredients', ing.id)!, markedOut: false });
+}
+
 const setUnitSpec = {
   schema: z.object({ ingredientId: z.string(), unit: z.string().min(1), qty: z.number().positive() }).strict(),
   run(tx: Tx, i: { ingredientId: string; unit: string; qty: number }) {
@@ -752,6 +795,7 @@ const recordSnack = {
   run(tx: Tx, i: { ingredientId?: string; qty?: number; unit?: string; label?: string; date?: string }) {
     const date = i.date ?? today(tx);
     let label = i.label ?? '加餐';
+    let eatenQty: number | undefined;
     if (i.ingredientId) {
       const ing = ingredientById(tx.state, i.ingredientId);
       label = i.label ?? ing.name;
@@ -760,10 +804,12 @@ const recordSnack = {
         if (!c) throw new DomainError('NEEDS_SPEC', `还不知道 1${i.unit}${ing.name} 有多重，请直接填克数。`);
         const alloc = deduct(tx, ing.id, c.qty, '加餐');
         if (alloc.shortfall > 0) tx.warnings.push(`${ing.name}库存记录不足，差额待核对`);
+        eatenQty = c.qty;
       }
     }
     tx.append<ConsumptionEvent>('consumption_events', {
       id: tx.newId('ce'), txId: tx.txId, at: tx.at, date, slot: 'snack', kind: 'ready_to_eat', batchId: null, ingredientId: i.ingredientId ?? null, recipeId: null, portions: 1, label,
+      ...(eatenQty !== undefined ? { qty: eatenQty } : {}),
     });
     ensureSnackSlot(tx, date, null, null, 1);
     tx.summary = `记下加餐：${label}`;
@@ -781,7 +827,10 @@ const addIngredient = {
     defaultLocation: location,
   }).strict(),
   run(tx: Tx, i: { name: string; aliases?: string[]; category: Ingredient['category']; unit: 'g' | 'ml' | 'count'; countUnit?: string; defaultLocation: Location }) {
-    if (tx.state.ingredients.some((x) => x.name === i.name)) throw new DomainError('DUPLICATE', `目录里已经有${i.name}`);
+    const dup = tx.state.ingredients.find((x) => x.name === i.name);
+    // 备用食材在库存页是收起的，用户看不到它，所以直接沿用而不是报重名。
+    if (dup?.catalogOnly) { tx.summary = `目录里已经有 ${dup.name}`; tx.data = { ingredientId: dup.id }; return; }
+    if (dup) throw new DomainError('DUPLICATE', `目录里已经有${i.name}`);
     const ing = tx.put<Ingredient>('ingredients', {
       id: tx.newId('ing'), name: i.name, aliases: i.aliases ?? [], category: i.category, unit: i.unit,
       ...(i.unit === 'count' ? { countUnit: i.countUnit ?? '个' } : {}),
@@ -969,6 +1018,63 @@ const updateRecipe = {
   },
 };
 
+const OUTDATED_NOTES: [Id, string][] = [['chicken_breast', '采购时可按一顿/一天分袋，冷冻前保持原味']];
+/** 鸡胸肉和牛肉碎一袋 1 lb，菜谱默认用量从 500g 改成 454g。 */
+const OLD_BAG_QTY = 500;
+const BAG_QTY = 454;
+
+/**
+ * 把新版本目录并进已有数据：只加缺的行，不改用户已有的行。
+ * ensureSeeded 只在空库时写入，已经在用的手机靠这条命令拿到新菜谱。
+ */
+const syncCatalog = {
+  schema: z.object({}).strict(),
+  run(tx: Tx) {
+    const seed = seedState();
+    const existing = tx.state.ingredients;
+    const ids = new Set(existing.map((x) => x.id));
+    // 用户自己建过同名食材时沿用那一条，否则库存里会出现两个「土豆」。
+    const renamed = new Map<Id, Id>();
+    const missing: Ingredient[] = [];
+    for (const ing of seed.ingredients) {
+      if (ids.has(ing.id)) continue;
+      const names = new Set([ing.name, ...ing.aliases]);
+      const same = existing.find((x) => names.has(x.name) || x.aliases.includes(ing.name));
+      if (same) renamed.set(ing.id, same.id);
+      else missing.push(ing);
+    }
+    missing.forEach((ing) => tx.put('ingredients', ing));
+    // 过时的目录提示只在原文没变时替换。这个字段用户改不了，不会盖掉用户内容。
+    for (const [id, outdated] of OUTDATED_NOTES) {
+      const row = tx.get<Ingredient>('ingredients', id);
+      const note = seed.ingredients.find((x) => x.id === id)?.note;
+      if (row?.note === outdated && note) tx.put('ingredients', { ...row, note });
+    }
+    const addMissing = <T extends { id: Id }>(table: 'products' | 'ingredient_substitutions' | 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps', rows: T[]) => {
+      const have = new Set((tx.state[table] as { id: Id }[]).map((r) => r.id));
+      let added = 0;
+      for (const r of rows) if (!have.has(r.id)) { tx.put(table, r); added++; }
+      return added;
+    };
+    addMissing('products', seed.products);
+    addMissing('ingredient_substitutions', seed.ingredient_substitutions);
+    const recipes = addMissing('recipes', seed.recipes);
+    addMissing('recipe_variants', seed.recipe_variants);
+    addMissing('recipe_ingredients', seed.recipe_ingredients.map((r) => ({ ...r, ingredientId: renamed.get(r.ingredientId) ?? r.ingredientId })));
+    addMissing('recipe_steps', seed.recipe_steps);
+    // 用量用户改得了，所以只迁移一次：之后用户自己改回 500g 也不会被盖掉。
+    if (!tx.get<Preference>('preferences', BAG_QTY_MIGRATION)) {
+      for (const row of seed.recipe_ingredients) {
+        const cur = tx.get<RecipeIngredient>('recipe_ingredients', row.id);
+        if (row.qty === BAG_QTY && cur?.qty === OLD_BAG_QTY) tx.put<RecipeIngredient>('recipe_ingredients', { ...cur, qty: BAG_QTY });
+      }
+      tx.put<Preference>('preferences', { id: BAG_QTY_MIGRATION, value: true, rev: 0 });
+    }
+    tx.summary = `目录新增 ${recipes} 道菜、${missing.length} 种食材`;
+    tx.undoable = false;
+  },
+};
+
 const clearAiHistory = {
   schema: z.object({}).strict(),
   run(tx: Tx) {
@@ -991,8 +1097,8 @@ const undoTransaction = {
 export const COMMANDS = {
   setMealStatus, setDayAway, restoreMeal, setPortionTarget, changeMealCount, swapRecipe, moveMeal, lockSlot, setConstraint, syncPlan,
   startCookSession, cancelCookSession, finishCook, consumePreparedPortion, reconcileMealPortions, revertConsumption, reviseCookSession,
-  discardBatch, moveBatch, adjustInventory, calibrateInventory, addIngredient, setNextShopDate, setSeasoningLevel, setUnitSpec, moveInventory, discardLot, recordSnack,
-  confirmPurchase, createShoppingList, discardShoppingList, addShoppingItem, removeShoppingItem, copyLastPurchase, rateRecipe, updateRecipe, clearAiHistory, undoTransaction,
+  discardBatch, moveBatch, adjustInventory, importStock, setCookingOil, calibrateInventory, addIngredient, setNextShopDate, setSeasoningLevel, setUnitSpec, moveInventory, discardLot, recordSnack,
+  confirmPurchase, createShoppingList, discardShoppingList, addShoppingItem, removeShoppingItem, copyLastPurchase, rateRecipe, updateRecipe, syncCatalog, clearAiHistory, undoTransaction,
 } as const;
 
 export type CommandName = keyof typeof COMMANDS;

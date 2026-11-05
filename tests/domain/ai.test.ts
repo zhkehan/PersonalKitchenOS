@@ -253,7 +253,7 @@ describe('场景 A–I 的自然语言（规则解析驱动，与模型共用同
     expect(r.type).toBe('preview');
     if (r.type === 'preview') {
       expect(r.result.details.join('；')).toContain('今天午餐改外食');
-      expect(r.result.details.join('；')).toContain('约250g');
+      expect(r.result.details.join('；')).toContain('约227g');
       expect(r.result.details).toContain('库存不变');
     }
     confirm(k, r);

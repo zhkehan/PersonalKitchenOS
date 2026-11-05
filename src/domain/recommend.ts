@@ -43,6 +43,8 @@ function usableQty(state: KitchenState, ingredientId: Id, today: LocalDate) {
 }
 
 /** 单种食材的状态。这是整个推荐的事实基础，全部来自真实批次。 */
+const ENOUGH_TOLERANCE = 0.02;
+
 function lineStatus(state: KitchenState, ingredientId: Id, need: number | null, today: LocalDate): LineStatus {
   const stock = stockOf(state, ingredientId);
   if (stock.ingredient.unit === 'level') {
@@ -52,7 +54,8 @@ function lineStatus(state: KitchenState, ingredientId: Id, need: number | null, 
   if (stock.reality === 'mentioned') return 'unknown';
   const u = usableQty(state, ingredientId, today);
   if (stock.reality === 'out' && !u.unknownReady && !u.unknownFrozen) return 'missing';
-  const required = need ?? 0;
+  // 1 lb 记账是 453.6g，菜谱写 454g。取整和称重的小差额不该让最后一袋变成「不够」；差额做完仍会记录。
+  const required = (need ?? 0) * (1 - ENOUGH_TOLERANCE);
   if (u.ready >= required && u.ready > 0) return 'ok';
   if (u.unknownReady) return 'unknown';
   if (stock.ingredient.needsThaw && u.ready + u.frozen >= required && u.frozen > 0) return 'frozen';
@@ -259,6 +262,8 @@ export function recommendToday(state: KitchenState, now: Date, opts: RecommendOp
   const preferredVariant = meal.slotRow?.variantId ?? null;
   for (const recipe of state.recipes) {
     if (!recipe.enabled || recipe.tier === 'snack' || skip.has(recipe.id)) continue;
+    // 菜谱库只在用户点名、排进这一餐时出现，不当作推荐候选。
+    if (recipe.tier === 'library' && meal.slotRow?.recipeId !== recipe.id) continue;
     if (c?.excludeRecipeIds.includes(recipe.id)) { excluded.push({ name: recipe.name, why: '你今天不想吃' }); continue; }
     const variant = pickVariant(state, recipe.id, !!c?.airfryerOnly, preferredVariant);
     if (!variant) { excluded.push({ name: recipe.name, why: '不适合只用空气炸锅' }); continue; }

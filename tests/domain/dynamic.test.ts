@@ -18,7 +18,7 @@ function cooked() {
 }
 
 describe('B. 动态日程', () => {
-  it('11 外食前尚未做饭：午餐外食，晚餐单份约 250g，库存不变，采购更新', () => {
+  it('11 外食前尚未做饭：午餐外食，晚餐单份约 227g，库存不变，采购更新', () => {
     const k = new Kitchen();
     k.run('swapRecipe', { date: TODAY, recipeId: 'R04' });
     k.buy({ yellow_onion: 500 });
@@ -31,11 +31,11 @@ describe('B. 动态日程', () => {
     expect(k.slot(lunch).status).toBe('eating_out');
     expect(k.slot(dinner).role).toBe('cook');
     expect(k.slot(dinner).cookServings).toBe(1);
-    expect(k.last.details.join('；')).toContain('约250g');
+    expect(k.last.details.join('；')).toContain('约227g');
     expect(k.last.details).toContain('库存不变');
     expect(JSON.stringify(k.state.inventory_lots)).toBe(lots);
     const after = forecastShopping(k.state, k.now).items.find((i) => i.ingredientId === 'ground_beef')!;
-    expect(after.needed).toBe(before.needed - 250);
+    expect(after.needed).toBe(before.needed - 227);
   });
 
   it('12 午餐吃 1 份、晚餐临时外食：熟菜还在，下一餐优先，不退回生肉', () => {
@@ -281,10 +281,10 @@ describe('B. 动态日程', () => {
 
   it('新食材只进目录，不产生库存；重名被拒绝', () => {
     const k = new Kitchen();
-    k.run('addIngredient', { name: '香蕉', aliases: ['banana'], category: 'fresh', unit: 'count', countUnit: '根', defaultLocation: 'pantry' });
-    expect(k.state.ingredients.find((i) => i.name === '香蕉')?.countUnit).toBe('根');
+    k.run('addIngredient', { name: '火龙果', aliases: ['dragon fruit'], category: 'fresh', unit: 'count', countUnit: '个', defaultLocation: 'pantry' });
+    expect(k.state.ingredients.find((i) => i.name === '火龙果')?.countUnit).toBe('个');
     expect(k.state.inventory_lots).toHaveLength(0);
-    expect(() => k.run('addIngredient', { name: '香蕉', category: 'fresh', unit: 'g', defaultLocation: 'pantry' })).toThrow(/已经有/);
+    expect(() => k.run('addIngredient', { name: '火龙果', category: 'fresh', unit: 'g', defaultLocation: 'pantry' })).toThrow(/已经有/);
   });
 
   it('改下次采购日后，预测和计划范围跟着变', () => {
@@ -346,11 +346,11 @@ describe('C. 推荐与采购', () => {
     const k = new Kitchen();
     const fc = forecastShopping(k.state, k.now);
     const chicken = fc.items.find((i) => i.ingredientId === 'chicken_breast')!;
-    // 14 天里 6 个鸡肉日，每天 500g
-    expect(chicken.needed).toBe(3000);
+    // 14 天里 6 个鸡肉日，每天 454g
+    expect(chicken.needed).toBe(2724);
     k.buy({ chicken_breast: [1000, 'g', 'freezer'] });
     const after = forecastShopping(k.state, k.now).items.find((i) => i.ingredientId === 'chicken_breast')!;
-    expect(after.gap).toBe(2000);
+    expect(after.gap).toBe(1724);
     expect(after.tag).toBe('must');
     expect(after.reason).toContain('分袋冷冻');
     expect(after.packLabel).toContain('规格待核对');

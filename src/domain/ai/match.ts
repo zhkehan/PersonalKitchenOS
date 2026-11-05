@@ -14,7 +14,7 @@ export function findRecipe(state: KitchenState, name: string | null | undefined)
   const q = norm(name);
   if (q.length < 2) return null;
   const pool = state.recipes.filter((r) => r.enabled);
-  const rank = (r: Recipe) => ({ core: 0, variant: 1, backup: 2, snack: 3 }[r.tier]);
+  const rank = (r: Recipe) => ({ core: 0, variant: 1, backup: 2, snack: 3, library: 4 }[r.tier]);
   const pick = (list: Recipe[]) => [...list].sort((a, b) => rank(a) - rank(b) || a.name.length - b.name.length)[0] ?? null;
   return (
     pool.find((r) => norm(r.name) === q) ??

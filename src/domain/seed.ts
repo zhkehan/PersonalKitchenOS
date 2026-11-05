@@ -1,7 +1,8 @@
-import type {
-  Equipment, Ingredient, IngredientCategory, IngredientSubstitution, KitchenState, Location, Product,
-  Protein, ProteinWeeklyPreference, Recipe, RecipeIngredient, RecipeStep, RecipeVariant,
-} from './types';
+import { LIBRARY_DEFS, LIBRARY_INGREDIENTS } from './library';
+import {
+  AF, expandRecipes, ing, LEFTOVER, meat, ODOR_CHICKEN, ODOR_FISH, SAFE_BEEF, SAFE_CHICKEN, SAFE_FISH, SAFE_PORK, SAFE_SHRIMP, sauce, type RecipeDef,
+} from './seedHelpers';
+import type { Ingredient, IngredientSubstitution, KitchenState, Product, ProteinWeeklyPreference } from './types';
 import { emptyState } from './types';
 
 /**
@@ -9,42 +10,26 @@ import { emptyState } from './types';
  * 这里没有任何库存批次 —— 用户何时买的、买了多少、价格多少一律未知，不编造。
  */
 
-type IngOpts = Partial<Pick<Ingredient,
-  'countUnit' | 'highRisk' | 'defaultLocation' | 'shelfDays' | 'thawedDays' | 'freezable' | 'needsThaw' | 'quickThawMinutes' | 'maybe' | 'note'>>;
-
-function ing(id: string, name: string, aliases: string[], category: IngredientCategory, unit: Ingredient['unit'], opts: IngOpts = {}): Ingredient {
-  return {
-    id, name, aliases, category, unit,
-    unitSpecs: {},
-    highRisk: false,
-    defaultLocation: 'pantry' as Location,
-    shelfDays: null,
-    thawedDays: null,
-    freezable: false,
-    needsThaw: false,
-    quickThawMinutes: null,
-    level: unit === 'level' ? 'unconfirmed' : null,
-    markedOut: false,
-    rev: 0,
-    ...opts,
-  };
-}
-
-const meat = (extra: IngOpts): IngOpts => ({ highRisk: true, defaultLocation: 'freezer', freezable: true, needsThaw: true, shelfDays: 2, thawedDays: 2, ...extra });
-const sauce = (id: string, name: string, aliases: string[] = [], opts: IngOpts = {}) => ing(id, name, aliases, 'seasoning', 'level', opts);
-
 export const SEED_INGREDIENTS: Ingredient[] = [
   // 蛋白质
-  ing('chicken_breast', '鸡胸肉', ['鸡胸', '鸡肉', 'chicken breast', 'chicken'], 'protein', 'g', meat({ note: '采购时可按一顿/一天分袋，冷冻前保持原味' })),
+  ing('chicken_breast', '鸡胸肉', ['鸡胸', '鸡肉', 'chicken breast', 'chicken'], 'protein', 'g', meat({ note: '腌好后按一天一袋冷冻；腌法可以换，配方见菜谱页的厨房资料' })),
   ing('ground_beef', '牛肉碎', ['牛肉末', '碎牛肉', '牛肉', 'ground beef', 'beef'], 'protein', 'g', meat({})),
   ing('pork_loin', '猪里脊', ['里脊', '猪肉', 'pork loin', 'pork'], 'protein', 'g', meat({ shelfDays: 3, thawedDays: 3 })),
   ing('frozen_fish', '冷冻鱼片', ['鱼片', '鱼', '罗非鱼', 'tilapia', 'fish fillet', 'fish'], 'protein', 'g', meat({ shelfDays: 1 })),
   ing('frozen_shrimp', '冷冻虾', ['虾', '虾仁', 'shrimp', 'prawn'], 'protein', 'g', meat({ shelfDays: 1, quickThawMinutes: 15 })),
   ing('canned_sardine', '水浸沙丁鱼罐头', ['沙丁鱼', '沙丁鱼罐头', 'sardine', 'sardines'], 'protein', 'count', { countUnit: '罐' }),
+  ing('canned_roast_beef', '牛肉罐头', ['罐头牛肉', 'roast beef', 'canned beef'], 'protein', 'count', { countUnit: '罐', note: '已经全熟，开罐即食。开罐后吃不完放冰箱。' }),
   ing('egg', '鸡蛋', ['蛋', 'egg', 'eggs'], 'staple', 'count', { countUnit: '颗', defaultLocation: 'fridge' }),
   // 主食与常温
   ing('rice', '大米', ['米', '米饭', 'rice'], 'staple', 'g'),
+  ing('brown_rice', '糙米', ['brown rice'], 'staple', 'g'),
   ing('pasta', '意面', ['意大利面', 'pasta', 'spaghetti'], 'staple', 'g'),
+  ing('glass_noodle', '粉丝', ['绿豆粉丝', 'glass noodles', 'vermicelli'], 'staple', 'count', { countUnit: '袋' }),
+  ing('buldak_noodle', '火鸡面', ['buldak', '三养火鸡面'], 'staple', 'count', { countUnit: '包' }),
+  ing('pork_dumpling', '猪肉饺子', ['比比古猪肉饺子', 'pork mandu'], 'staple', 'count', { countUnit: '个', defaultLocation: 'freezer', freezable: true }),
+  ing('glass_noodle_dumpling', '粉丝饺子', ['比比古粉丝饺子'], 'staple', 'count', { countUnit: '个', defaultLocation: 'freezer', freezable: true }),
+  ing('chia_seed', '奇亚籽', ['chia', 'chia seeds'], 'pantry', 'g'),
+  ing('hotpot_base', '火锅底料', ['海底捞', '海底捞底料', 'hot pot base'], 'pantry', 'count', { countUnit: '块' }),
   ing('oats', '燕麦', ['燕麦片', 'oats', 'oatmeal'], 'staple', 'g'),
   ing('flour', '面粉', ['flour'], 'staple', 'g'),
   ing('wholewheat_flour', '全麦面粉', ['whole wheat flour'], 'staple', 'g'),
@@ -64,6 +49,9 @@ export const SEED_INGREDIENTS: Ingredient[] = [
   ing('frozen_broccoli', '冷冻西兰花', ['西兰花', 'broccoli'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
   ing('frozen_mixed_veg', '冷冻混合蔬菜', ['冷冻杂蔬', '杂蔬', 'mixed vegetables'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
   ing('frozen_spinach', '冷冻菠菜', ['菠菜', 'spinach'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
+  ing('frozen_corn', '冷冻玉米', ['玉米', '玉米粒', 'corn', 'sweet corn'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
+  ing('edamame', '冷冻毛豆', ['毛豆', '毛豆仁', 'edamame'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
+  ing('frozen_pepper_onion', '冷冻辣椒洋葱', ['混合辣椒洋葱', '辣椒洋葱', '彩椒洋葱', 'pepper onion blend'], 'frozen_veg', 'g', { defaultLocation: 'freezer', freezable: true }),
   // 调味品：用户声称拥有，数量未知 → 四态「未确认」
   sauce('olive_oil', '橄榄油', ['olive oil']),
   sauce('sesame_oil', '香油', ['sesame oil']),
@@ -93,6 +81,14 @@ export const SEED_INGREDIENTS: Ingredient[] = [
   sauce('sichuan_pepper', '花椒', ['sichuan pepper']),
   sauce('black_pepper', '黑胡椒', ['black pepper']),
   sauce('white_pepper', '白胡椒', ['white pepper']),
+  sauce('garlic_salt', '蒜盐', ['garlic salt']),
+  sauce('garlic_powder', '蒜粉', ['garlic powder']),
+  sauce('onion_powder', '洋葱粉', ['onion powder']),
+  sauce('mushroom_seasoning', '蘑菇调味粉', ['蘑菇粉', 'mushroom seasoning']),
+  sauce('sesame_seed', '芝麻', ['白芝麻', 'sesame seeds']),
+  sauce('fennel_seed', '茴香籽', ['小茴香', 'fennel seed']),
+  sauce('bbq_rub_spicy', '香辣烧烤料'),
+  sauce('bbq_rub_cumin', '孜然烧烤料'),
   sauce('black_pepper_sauce', '黑椒酱', ['black pepper sauce'], { maybe: true, note: '可能有/待核实；菜谱用黑胡椒替代' }),
 ];
 
@@ -100,6 +96,11 @@ export const SEED_PRODUCTS: Product[] = [
   { id: 'p_mushroom_8oz', ingredientId: 'mushroom', name: 'Baby Bella / Cremini 整颗 8oz', retailer: null, packQty: 8, packUnit: 'oz', price: null, note: 'whole 未切', rev: 0 },
   { id: 'p_carrot_loose', ingredientId: 'carrot', name: '散装胡萝卜', retailer: null, packQty: 1, packUnit: '根', price: null, note: '不买 2lb 整袋', rev: 0 },
   { id: 'p_scallion', ingredientId: 'scallion', name: '小葱一把', retailer: null, packQty: 1, packUnit: '把', price: null, rev: 0 },
+  { id: 'p_beef_1lb', ingredientId: 'ground_beef', name: '牛肉碎 93/7 1lb', retailer: null, packQty: 1, packUnit: 'lb', price: null, rev: 0 },
+  { id: 'p_shrimp_2lb', ingredientId: 'frozen_shrimp', name: '冷冻虾 16–20 2lb', retailer: null, packQty: 2, packUnit: 'lb', price: null, rev: 0 },
+  { id: 'p_tilapia_2lb', ingredientId: 'frozen_fish', name: '冷冻罗非鱼 2lb', retailer: null, packQty: 2, packUnit: 'lb', price: null, rev: 0 },
+  { id: 'p_peas_2lb', ingredientId: 'frozen_sweet_peas', name: 'Great Value 甜豌豆 2lb', retailer: null, packQty: 2, packUnit: 'lb', price: null, rev: 0 },
+  { id: 'p_pepper_onion_20oz', ingredientId: 'frozen_pepper_onion', name: 'Great Value 辣椒洋葱 20oz', retailer: null, packQty: 20, packUnit: 'oz', price: null, rev: 0 },
 ];
 
 export const SEED_SUBSTITUTIONS: IngredientSubstitution[] = [
@@ -120,28 +121,11 @@ export const SEED_PROTEIN_PREFS: ProteinWeeklyPreference[] = [
 /** 默认 7 天结构：鸡肉日隔开排，不规定星期几。 */
 export const ROTATION_CYCLE = ['R01', 'R04', 'R02', 'R05', 'R06', 'R03', 'R07'];
 
-interface MethodDef { key: string; name: string; equipment: Equipment[]; minutes: number; fit: string; airfryerOnlyOk?: boolean; steps: string[] }
-type IngDef = [id: string, qty: number | null, role?: 'required' | 'optional', label?: string];
-interface RecipeDef {
-  id: string; name: string; tier: Recipe['tier']; parentId?: string; protein: Protein; flavors: string[]; spicy?: boolean;
-  seasoning: string; cut: string; odor?: string; leftover?: string; safety: string; ingredients: IngDef[]; methods: MethodDef[];
-}
-
-const SAFE_CHICKEN = '鸡肉中心 74°C；空气炸锅时间仅供参考，优先用温度计。';
-const SAFE_BEEF = '牛肉碎中心 71°C，炒到无粉色。';
-const SAFE_PORK = '整块猪里脊 63°C 并静置 3 分钟；切薄片也要全熟。';
-const SAFE_FISH = '鱼中心 63°C，肉质不透明、能轻松分瓣。';
-const SAFE_SHRIMP = '虾炒至不透明、肉质紧实。';
-const LEFTOVER = '吃不完及时冷藏，3 天内吃完或冷冻；复热到 74°C。';
-const ODOR_CHICKEN = '冷冻鸡胸有腥味时，用姜片、花椒或一点醋改善风味（只改善风味，不会让变质食材变安全）。';
-const ODOR_FISH = '鱼腥味重时加姜丝、蒜和少量酸味；只改善风味，不能挽救变质食材。';
-const AF = '空气炸锅内侧约 19.5×20cm，单层摆放，放不下就分批。';
-
 const DEFS: RecipeDef[] = [
   {
     id: 'R01', name: '黑椒蘑菇鸡丁', tier: 'core', protein: 'chicken', flavors: ['黑椒', '蒜香'],
     seasoning: '黑胡椒足量 + 蒜末 + 蚝油 10g/250g 肉；有黑椒酱可替换', cut: '鸡丁 1.5–2cm；空气炸 2–2.5cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['mushroom', 120], ['yellow_onion', 80], ['black_pepper', null, 'required', '足量'], ['minced_garlic', null, 'required', '适量'], ['oyster_sauce', null, 'required', '约 20g'], ['black_pepper_sauce', null, 'optional', '可替换黑胡椒'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['chicken_breast', 454], ['mushroom', 120], ['yellow_onion', 80], ['black_pepper', null, 'required', '足量'], ['minced_garlic', null, 'required', '适量'], ['oyster_sauce', null, 'required', '约 20g'], ['black_pepper_sauce', null, 'optional', '可替换黑胡椒'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'pan', name: '炒锅煎焖收汁', equipment: ['pan'], minutes: 25, fit: '首选', steps: ['鸡胸切 1.5–2cm 丁，蘑菇切厚片，洋葱切块。', '少油中火把鸡丁铺开，先煎不翻，表面变白后盛出。', '同锅炒洋葱和蘑菇到出水变软。', '鸡丁回锅，加蒜末、蚝油、黑胡椒和 2 勺水，盖盖焖 3–4 分钟收汁。', '确认鸡肉中心 74°C 后出锅。'] },
       { key: 'hybrid', name: '空气炸 + 炒锅拌酱', equipment: ['airfryer', 'pan'], minutes: 25, fit: '适合混合', steps: ['鸡切 2–2.5cm 块，少油拌黑胡椒。', `空气炸锅 190°C 约 12 分钟，中途翻面。${AF}`, '另用炒锅炒蘑菇、洋葱。', '把鸡块倒回，加蚝油、蒜末翻匀。', '确认鸡肉中心 74°C。'] },
@@ -150,7 +134,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R02', name: '孜然洋葱鸡丁', tier: 'core', protein: 'chicken', flavors: ['孜然', '香辣'], spicy: true,
     seasoning: '孜然粉 2g + 辣椒粉 1g + 生抽 5ml（每 250g 肉）', cut: '鸡丁 1.5–2cm；空气炸 2–2.5cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['yellow_onion', 100], ['cumin', null, 'required', '4g'], ['chili_powder', null, 'required', '2g'], ['light_soy', null, 'required', '10ml'], ['green_pepper', 1, 'optional', '可选'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['chicken_breast', 454], ['yellow_onion', 100], ['cumin', null, 'required', '4g'], ['chili_powder', null, 'required', '2g'], ['light_soy', null, 'required', '10ml'], ['green_pepper', 1, 'optional', '可选'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 20, fit: '非常适合', airfryerOnlyOk: true, steps: ['鸡切 2–2.5cm 块，拌孜然粉、辣椒粉、生抽，少许油。', `空气炸锅 190°C 约 10 分钟。${AF}`, '翻面，放洋葱（切大块防焦），再炸 5–7 分钟。', '确认鸡肉中心 74°C，洋葱别烤焦。'] },
       { key: 'pan', name: '低火力煎焖', equipment: ['pan'], minutes: 20, fit: '首选之一', steps: ['鸡丁拌孜然、辣椒粉、生抽。', '少油中火铺开煎到两面变色。', '加洋葱翻炒，淋 2 勺水盖盖焖 3 分钟。', '开盖收干，确认鸡肉中心 74°C。'] },
@@ -159,7 +143,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R03', name: '咖喱鸡肉杂蔬', tier: 'core', protein: 'chicken', flavors: ['咖喱'],
     seasoning: '咖喱粉 + 少量牛奶或水', cut: '鸡丁 1.5–2cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['yellow_onion', 100], ['carrot', 1], ['frozen_mixed_veg', 150], ['curry_powder', null, 'required', '约 2 大勺'], ['milk', 100, 'optional', '也可用水'], ['rice', 150, 'optional', '配饭']],
+    ingredients: [['chicken_breast', 454], ['yellow_onion', 100], ['carrot', 1], ['frozen_mixed_veg', 150], ['curry_powder', null, 'required', '约 2 大勺'], ['milk', 100, 'optional', '也可用水'], ['rice', 150, 'optional', '配饭']],
     methods: [
       { key: 'pot', name: '小锅焖煮', equipment: ['pot'], minutes: 30, fit: '首选', steps: ['洋葱切丁炒软，胡萝卜切小块同炒。', '加鸡丁炒到变色。', '撒咖喱粉炒香，加水没过一半，小火焖 10 分钟。', '加冷冻杂蔬再煮 5 分钟，加少量牛奶收稠。', '确认鸡肉中心 74°C。'] },
       { key: 'hybrid', name: '鸡先烤后入咖喱汁', equipment: ['airfryer', 'pot'], minutes: 30, fit: '不建议纯炸：酱汁菜', steps: ['鸡块空气炸 190°C 约 10 分钟。', '小锅炒洋葱、胡萝卜，加咖喱粉和水煮软。', '放杂蔬和鸡块，再煮 5 分钟。', '确认鸡肉中心 74°C。'] },
@@ -168,7 +152,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'R04', name: '番茄牛肉碎意面', tier: 'core', protein: 'beef', flavors: ['番茄'],
     seasoning: '蒜末 + 黑胡椒 + 香草；番茄罐头作酱汁主体', cut: '牛肉碎，不需切配', leftover: LEFTOVER, safety: SAFE_BEEF,
-    ingredients: [['ground_beef', 500], ['canned_tomato', 1], ['yellow_onion', 100], ['pasta', 160], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['mushroom', 80, 'optional', '可选']],
+    ingredients: [['ground_beef', 454], ['canned_tomato', 1], ['yellow_onion', 100], ['pasta', 160], ['minced_garlic', null, 'required', '适量'], ['black_pepper', null, 'required', '适量'], ['mushroom', 80, 'optional', '可选']],
     methods: [
       { key: 'pan', name: '炒锅/小锅煮肉酱', equipment: ['pan', 'pot'], minutes: 30, fit: '首选；不建议空气炸', steps: ['洋葱切丁，蒜末备好。', '牛肉碎中火炒散至变色，沥掉多余油。', '加洋葱蒜末炒香，倒入番茄罐头，小火煮 12 分钟。', '另锅煮意面，捞出与肉酱拌匀。', '确认牛肉碎中心 71°C。'] },
     ],
@@ -204,31 +188,31 @@ const DEFS: RecipeDef[] = [
   {
     id: 'V01', name: '蒜香蚝油鸡', tier: 'variant', parentId: 'R01', protein: 'chicken', flavors: ['蒜香'],
     seasoning: '蚝油 10g + 生抽 5ml + 蒜末（每 250g 肉）', cut: '鸡丁 1.5–2cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['oyster_sauce', null, 'required', '20g'], ['light_soy', null, 'required', '10ml'], ['minced_garlic', null, 'required', '足量']],
+    ingredients: [['chicken_breast', 454], ['oyster_sauce', null, 'required', '20g'], ['light_soy', null, 'required', '10ml'], ['minced_garlic', null, 'required', '足量']],
     methods: [{ key: 'pan', name: '煎焖收汁', equipment: ['pan'], minutes: 18, fit: '首选', steps: ['鸡丁少油煎到变色。', '加蒜末炒香，加蚝油、生抽和 2 勺水。', '盖盖焖 3 分钟收汁，确认中心 74°C。'] }],
   },
   {
     id: 'V02', name: '韩式 BBQ 空气炸鸡', tier: 'variant', parentId: 'R02', protein: 'chicken', flavors: ['韩式', '甜咸'],
     seasoning: 'BBQ 酱 15–20g + 蒜末（每 250g 肉），烤后再拌防焦', cut: '鸡块 2–2.5cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['korean_bbq', null, 'required', '30–40g'], ['minced_garlic', null, 'required', '适量']],
+    ingredients: [['chicken_breast', 454], ['korean_bbq', null, 'required', '30–40g'], ['minced_garlic', null, 'required', '适量']],
     methods: [{ key: 'airfryer', name: '空气炸锅，酱后拌', equipment: ['airfryer'], minutes: 18, fit: '非常适合', airfryerOnlyOk: true, steps: ['鸡块少油拌匀。', `空气炸 190°C 约 14 分钟，中途翻面。${AF}`, '确认中心 74°C。', '出锅拌 BBQ 酱和蒜末（含糖酱后拌，防烤焦）。'] }],
   },
   {
     id: 'V03', name: '韩式甜辣空气炸鸡', tier: 'variant', parentId: 'R02', protein: 'chicken', flavors: ['韩式', '甜辣'], spicy: true,
     seasoning: '韩式辣酱 12g + 蜂蜜 5g + 生抽 5ml（每 250g 肉），烤后再拌', cut: '鸡块 2–2.5cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
+    ingredients: [['chicken_breast', 454], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
     methods: [{ key: 'airfryer', name: '空气炸锅，酱后拌', equipment: ['airfryer'], minutes: 18, fit: '非常适合', airfryerOnlyOk: true, steps: ['鸡块少油拌匀。', `空气炸 190°C 约 14 分钟，中途翻面。${AF}`, '确认中心 74°C。', '调好甜辣酱，出锅拌匀（含糖酱后拌）。'] }],
   },
   {
     id: 'V04', name: '韩式甜辣鸡 + 杂蔬', tier: 'variant', parentId: 'R03', protein: 'chicken', flavors: ['韩式', '甜辣'], spicy: true,
     seasoning: '韩式辣酱 12g + 蜂蜜 5g + 生抽 5ml（每 250g 肉）', cut: '鸡丁 1.5–2cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['frozen_mixed_veg', 200], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
+    ingredients: [['chicken_breast', 454], ['frozen_mixed_veg', 200], ['gochujang', null, 'required', '24g'], ['honey', null, 'required', '10g'], ['light_soy', null, 'required', '10ml']],
     methods: [{ key: 'pan', name: '煎焖拌酱', equipment: ['pan'], minutes: 22, fit: '首选', steps: ['鸡丁煎到变色。', '下杂蔬炒 3 分钟。', '加酱和 2 勺水焖 3 分钟，确认中心 74°C。'] }],
   },
   {
     id: 'V05', name: '韩式泡菜牛肉饭', tier: 'variant', parentId: 'R04', protein: 'beef', flavors: ['韩式', '酸辣'], spicy: true,
     seasoning: '泡菜 + 少量韩式辣酱 + 生抽', cut: '牛肉碎', leftover: LEFTOVER, safety: SAFE_BEEF,
-    ingredients: [['ground_beef', 500], ['kimchi', null, 'required', '约 150g'], ['rice', 160], ['light_soy', null, 'required', '少量'], ['gochujang', null, 'optional', '少量']],
+    ingredients: [['ground_beef', 454], ['kimchi', null, 'required', '约 150g'], ['rice', 160], ['light_soy', null, 'required', '少量'], ['gochujang', null, 'optional', '少量']],
     methods: [{ key: 'pan', name: '炒锅', equipment: ['pan'], minutes: 20, fit: '首选', steps: ['煮饭。', '牛肉碎炒散至变色，沥多余油。', '加泡菜炒 3 分钟，加生抽。', '确认牛肉碎中心 71°C，盖在饭上。'] }],
   },
   {
@@ -265,13 +249,13 @@ const DEFS: RecipeDef[] = [
   {
     id: 'B01', name: '花生酱鸡丝拌面', tier: 'backup', protein: 'chicken', flavors: ['花生', '酸辣'],
     seasoning: '花生酱 10g + 生抽 5ml + 陈醋 8ml + 水调稀（每份）', cut: '鸡胸煮熟撕丝', leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['pasta', 160], ['peanut_butter', null, 'required', '20g'], ['light_soy', null, 'required', '10ml'], ['black_vinegar', null, 'required', '16ml']],
+    ingredients: [['chicken_breast', 454], ['pasta', 160], ['peanut_butter', null, 'required', '20g'], ['light_soy', null, 'required', '10ml'], ['black_vinegar', null, 'required', '16ml']],
     methods: [{ key: 'pot', name: '煮', equipment: ['pot'], minutes: 25, fit: '首选', steps: ['鸡胸加姜片小火煮到中心 74°C，撕丝。', '煮面过水。', '调花生酱汁，拌匀。'] }],
   },
   {
     id: 'B02', name: '麻辣香锅牛肉杂蔬', tier: 'backup', protein: 'beef', flavors: ['麻辣'], spicy: true,
     seasoning: '炒料 10–15g，谨慎额外加盐和油', cut: '牛肉碎', leftover: LEFTOVER, safety: SAFE_BEEF,
-    ingredients: [['ground_beef', 500], ['frozen_mixed_veg', 200], ['mala_paste', null, 'required', '20–30g']],
+    ingredients: [['ground_beef', 454], ['frozen_mixed_veg', 200], ['mala_paste', null, 'required', '20–30g']],
     methods: [{ key: 'pan', name: '炒锅', equipment: ['pan'], minutes: 18, fit: '首选', steps: ['牛肉碎炒散至变色。', '加炒料炒香，下杂蔬炒 4 分钟。', '确认牛肉碎中心 71°C。'] }],
   },
   {
@@ -283,7 +267,7 @@ const DEFS: RecipeDef[] = [
   {
     id: 'B04', name: '蜂蜜芥末鸡丁', tier: 'backup', protein: 'chicken', flavors: ['甜咸'],
     seasoning: '黄芥末 10g + 蜂蜜 5g + 少量醋（每 250g 肉）', cut: '鸡块 2–2.5cm', odor: ODOR_CHICKEN, leftover: LEFTOVER, safety: SAFE_CHICKEN,
-    ingredients: [['chicken_breast', 500], ['yellow_mustard', null, 'required', '20g'], ['honey', null, 'required', '10g'], ['black_vinegar', null, 'optional', '少量']],
+    ingredients: [['chicken_breast', 454], ['yellow_mustard', null, 'required', '20g'], ['honey', null, 'required', '10g'], ['black_vinegar', null, 'optional', '少量']],
     methods: [{ key: 'airfryer', name: '空气炸锅，酱后拌', equipment: ['airfryer'], minutes: 18, fit: '适合', airfryerOnlyOk: true, steps: ['鸡块少油拌匀。', `空气炸 190°C 约 14 分钟。${AF}`, '确认中心 74°C，出锅拌酱。'] }],
   },
   {
@@ -307,36 +291,17 @@ const DEFS: RecipeDef[] = [
   },
 ];
 
+/** 新装的数据本来就是 454g，不需要走 syncCatalog 里的用量迁移。 */
+export const BAG_QTY_MIGRATION = 'migration:bag_qty_454g';
+
 export function seedRecipes(): Pick<KitchenState, 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps'> {
-  const recipes: Recipe[] = [];
-  const recipe_variants: RecipeVariant[] = [];
-  const recipe_ingredients: RecipeIngredient[] = [];
-  const recipe_steps: RecipeStep[] = [];
-  for (const d of DEFS) {
-    recipes.push({
-      id: d.id, name: d.name, tier: d.tier, parentId: d.parentId ?? null, protein: d.protein, flavors: d.flavors,
-      spicy: d.spicy ?? false, baseServings: d.tier === 'snack' ? 1 : 2, seasoningTemplate: d.seasoning, cutSize: d.cut,
-      odorTip: d.odor ?? '', leftoverTip: d.leftover ?? '', safetyTip: d.safety, enabled: true, feedback: null, notes: '',
-      lastCookedAt: null, rev: 0,
-    });
-    d.methods.forEach((m, i) => {
-      const variantId = `${d.id}:${m.key}`;
-      recipe_variants.push({
-        id: variantId, recipeId: d.id, name: m.name, equipment: m.equipment, minutes: m.minutes, fit: m.fit,
-        isDefault: i === 0, airfryerOnlyOk: m.airfryerOnlyOk ?? false,
-      });
-      m.steps.forEach((text, order) => recipe_steps.push({ id: `${variantId}:${order}`, variantId, order, text }));
-    });
-    d.ingredients.forEach(([ingredientId, qty, role, label], i) =>
-      recipe_ingredients.push({ id: `${d.id}:i${i}`, recipeId: d.id, ingredientId, qty, role: role ?? 'required', label }));
-  }
-  return { recipes, recipe_variants, recipe_ingredients, recipe_steps };
+  return expandRecipes([...DEFS, ...LIBRARY_DEFS]);
 }
 
 export function seedState(): KitchenState {
   return {
     ...emptyState(),
-    ingredients: SEED_INGREDIENTS.map((i) => ({ ...i })),
+    ingredients: [...SEED_INGREDIENTS, ...LIBRARY_INGREDIENTS].map((i) => ({ ...i })),
     products: SEED_PRODUCTS.map((p) => ({ ...p })),
     ingredient_substitutions: SEED_SUBSTITUTIONS.map((s) => ({ ...s })),
     protein_weekly_preferences: SEED_PROTEIN_PREFS.map((p) => ({ ...p })),
@@ -345,6 +310,7 @@ export function seedState(): KitchenState {
       { id: 'rotationCursor', value: 0, rev: 0 },
       { id: 'shopIntervalDays', value: 14, rev: 0 },
       { id: 'nextShopDate', value: null, rev: 0 },
+      { id: BAG_QTY_MIGRATION, value: true, rev: 0 },
     ],
   };
 }

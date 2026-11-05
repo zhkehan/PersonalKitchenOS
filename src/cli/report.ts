@@ -16,14 +16,14 @@ const STATUS: Record<string, string> = { unknown: '待核对', short: '不够', 
 
 export interface Readiness {
   recipe: Recipe;
-  /** 实物主料没有确认够用。 */
+  /** 实物主料没有确认够用，或必需调料确认没有。 */
   missing: string[];
   frozen: string[];
-  /** 调料没有确认过，不挡做菜，但要说明。 */
+  /** 调料待核对，不挡做菜，但要说明。 */
   seasonings: string[];
 }
 
-/** 这道菜的实物食材是否都确认够用。「待核对」不算有。 */
+/** 这道菜的必需食材是否都确认够用。实物「待核对」不算有；调料待核对不挡菜，确认没有才挡。 */
 export function readiness(state: KitchenState, recipe: Recipe, today: LocalDate): Readiness {
   const out: Readiness = { recipe, missing: [], frozen: [], seasonings: [] };
   for (const l of checkRecipe(state, recipe.id, recipe.baseServings, today).lines) {
@@ -31,7 +31,7 @@ export function readiness(state: KitchenState, recipe: Recipe, today: LocalDate)
     const level = state.ingredients.find((i) => i.id === l.ingredientId)?.unit === 'level';
     if (l.status === 'frozen') out.frozen.push(l.name);
     else if (l.status === 'ok') continue;
-    else if (level) out.seasonings.push(l.name);
+    else if (level && l.status === 'unknown') out.seasonings.push(l.name);
     else out.missing.push(`${l.name}（${STATUS[l.status]}）`);
   }
   return out;

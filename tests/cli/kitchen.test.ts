@@ -160,6 +160,30 @@ describe('推荐不能把没确认的东西说成有', () => {
     expect(fish?.frozen).toContain('冷冻鱼片');
   });
 
+  it('确认没有的必需调料不算齐：泡菜 out 时 V05 显示缺泡菜，待核对的调料仍不挡菜', () => {
+    sh('run', 'adjustInventory', '{"ingredientId":"ground_beef","qty":3,"unit":"lb"}');
+    sh('run', 'adjustInventory', '{"ingredientId":"rice","qty":2000}');
+    const v05 = () => { const s = loadState(); return readiness(s, s.recipes.find((r) => r.id === 'V05')!, TODAY); };
+    const ready = () => confirmedRecipes(loadState(), TODAY).map((r) => r.recipe.id);
+
+    // 没核对过：维持原样，算主料齐，调料单独列出。
+    expect(v05().missing).toEqual([]);
+    expect(v05().seasonings).toEqual(['泡菜', '生抽']);
+    expect(ready()).toContain('V05');
+
+    sh('run', 'setSeasoningLevel', '{"ingredientId":"kimchi","level":"out"}');
+    expect(v05().missing).toEqual(['泡菜（没有）']);
+    expect(v05().seasonings).toEqual(['生抽']);
+    expect(ready()).not.toContain('V05');
+    expect(sh('recipes', '泡菜牛肉')).toContain('V05 韩式泡菜牛肉饭：缺 泡菜（没有）');
+    expect(sh('today')).not.toMatch(/主料都确认有的菜.*韩式泡菜牛肉饭/);
+
+    // 补回来（快用完也算有）就恢复。
+    sh('run', 'setSeasoningLevel', '{"ingredientId":"kimchi","level":"low"}');
+    expect(v05().missing).toEqual([]);
+    expect(ready()).toContain('V05');
+  });
+
   it('today 的首选带未确认标记', () => {
     expect(sh('today')).toContain('主料未确认');
     expect(sh('today')).toContain('主料都确认有的菜（0 道）');

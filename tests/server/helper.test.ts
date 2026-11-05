@@ -86,10 +86,10 @@ describe('.env 不同步标记', () => {
     return path;
   };
 
-  it('Dropbox 里的 .env 缺标记时补上，已有时不动，重写冲掉后能再补上', () => {
+  // NTFS 附加流只有 Windows 才有；CI 跑在 Linux 上。
+  it.skipIf(process.platform !== 'win32')('Dropbox 里的 .env 缺标记时补上，已有时不动，重写冲掉后能再补上', () => {
     const path = file();
-    expect(protectEnvFile(path, 'win32')).toBe(process.platform === 'win32');
-    if (process.platform !== 'win32') return;
+    expect(protectEnvFile(path, 'win32')).toBe(true);
     expect(protectEnvFile(path, 'win32')).toBe(false);
     expect(readFileSync(`${path}:com.dropbox.ignored`, 'utf8')).toBe('1');
     expect(readFileSync(path, 'utf8')).toBe('SECRET=1');

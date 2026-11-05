@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { findIngredient, findRecipe, ingredientInText, recipeInText } from '../../src/domain/match';
 import { MARINADE_NOTE, DIPS, HOT_SAUCES, MARINADES, TEMPLATES } from '../../src/domain/references';
-import { LIBRARY_DEFS, LIBRARY_INGREDIENTS } from '../../src/domain/library';
+import { LIBRARY_DEFS, LIBRARY_INGREDIENTS, PANTRY_DEFS } from '../../src/domain/library';
 import { NUTRITION_FACTS } from '../../src/domain/nutrition';
 import { checkRecipe, recommendToday } from '../../src/domain/recommend';
 import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, ROTATION_CYCLE, seedState } from '../../src/domain/seed';
@@ -14,7 +14,7 @@ const QTY_MIGRATIONS = [BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION];
 /** 上线第一版的目录：已经装在手机上的数据长这样。 */
 function firstReleaseState(): KitchenState {
   const s = seedState();
-  const library = new Set(s.recipes.filter((r) => r.tier === 'library').map((r) => r.id));
+  const library = new Set([...LIBRARY_DEFS, ...PANTRY_DEFS].map((d) => d.id));
   return {
     ...s,
     ingredients: s.ingredients.filter((i) => !i.catalogOnly).map((i) => (i.id === 'chicken_breast' ? { ...i, note: OLD_NOTE } : i)),
@@ -45,7 +45,8 @@ describe('升级已有数据', () => {
       expect(k.state[t]).toEqual(before[t]);
     }
     expect(k.state.preferences.filter((p) => !QTY_MIGRATIONS.includes(p.id))).toEqual(before.preferences);
-    expect(k.state.recipes.filter((r) => r.tier !== 'library')).toEqual(before.recipes);
+    const added = new Set([...LIBRARY_DEFS, ...PANTRY_DEFS].map((d) => d.id));
+    expect(k.state.recipes.filter((r) => !added.has(r.id))).toEqual(before.recipes);
     expect(k.state.recipes.find((r) => r.id === 'R01')).toMatchObject({ feedback: 'good', notes: '多放蒜' });
     expect(k.state.ingredients.find((i) => i.id === 'light_soy')?.level).toBe('have');
     expect(k.state.recipes.filter((r) => r.tier === 'library')).toHaveLength(LIBRARY_DEFS.length);
@@ -231,6 +232,38 @@ describe('菜谱库不打扰日常', () => {
     // 确认这个场景真的能测到过滤：同样的菜点名排进这一餐就能出现。
     k.run('swapRecipe', { date: TODAY, slot: 'lunch', recipeId: 'L13' });
     expect(recommendToday(k.state, k.now).primary?.title).toBe('韩式炒牛肉');
+  });
+
+  it('常备菜进自动推荐，但不进 7 天轮换', () => {
+    const k = new Kitchen();
+    k.buy({ canned_sardine: 2, canned_tomato: 1, pasta: 160 });
+    const pantry = new Set(PANTRY_DEFS.map((d) => d.id));
+    const skip = k.state.recipes.filter((r) => !pantry.has(r.id)).map((r) => r.id);
+    const pick = recommendToday(k.state, k.now, { skip }).primary;
+    expect(pick?.kind === 'recipe' && pantry.has(pick.recipe.id)).toBe(true);
+    expect(PANTRY_DEFS.every((d) => d.tier === 'backup')).toBe(true);
+    expect(ROTATION_CYCLE.some((id) => pantry.has(id))).toBe(false);
+  });
+
+  it('肉类按轮换：计划的菜不选时，先换同一种肉的其他菜', () => {
+    const k = new Kitchen();
+    k.buy({ chicken_breast: [1000, 'g', 'fridge'], canned_sardine: 2, canned_tomato: 1, pasta: 160 });
+    const plan = k.state.meal_slots.find((s) => s.date === TODAY && s.slot === 'lunch');
+    const protein = k.state.recipes.find((r) => r.id === plan?.recipeId)?.protein;
+    expect(protein).toBe('chicken');
+    const pick = recommendToday(k.state, k.now, { skip: [plan!.recipeId!] }).primary;
+    expect(pick?.kind === 'recipe' && pick.recipe.protein).toBe('chicken');
+    expect(pick?.reasons).toContain('肉类不变，换个做法');
+  });
+
+  it('按菜谱库导入过的常备菜升级后进推荐，用户标记不丢，其他菜谱库不动', () => {
+    const k = new Kitchen();
+    k.state.recipes = k.state.recipes.map((r) => (PANTRY_DEFS.some((d) => d.id === r.id) ? { ...r, tier: 'library' as const } : r));
+    k.run('rateRecipe', { recipeId: 'L36', feedback: 'good' });
+    k.run('updateRecipe', { recipeId: 'L36', notes: '多放蒜' });
+    k.run('syncCatalog', {});
+    expect(k.state.recipes.find((r) => r.id === 'L36')).toMatchObject({ tier: 'backup', feedback: 'good', notes: '多放蒜' });
+    expect(k.state.recipes.find((r) => r.id === 'L13')?.tier).toBe('library');
   });
 
   it('7 天轮换和新增计划都不含菜谱库', () => {

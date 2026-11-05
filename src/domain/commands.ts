@@ -1067,6 +1067,11 @@ const syncCatalog = {
     addMissing('recipe_variants', seed.recipe_variants);
     addMissing('recipe_ingredients', seed.recipe_ingredients.map((r) => ({ ...r, ingredientId: renamed.get(r.ingredientId) ?? r.ingredientId })));
     addMissing('recipe_steps', seed.recipe_steps);
+    // 层级用户改不了，直接跟目录走，不会盖掉用户内容。常备菜最初是按菜谱库导入的。
+    for (const row of seed.recipes) {
+      const cur = tx.get<Recipe>('recipes', row.id);
+      if (cur?.tier === 'library' && row.tier !== 'library') tx.put<Recipe>('recipes', { ...cur, tier: row.tier });
+    }
     // 用量用户改得了，所以只迁移一次：之后用户自己改回 500g 也不会被盖掉。
     if (!tx.get<Preference>('preferences', BAG_QTY_MIGRATION)) {
       for (const row of seed.recipe_ingredients) {

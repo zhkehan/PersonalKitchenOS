@@ -190,6 +190,7 @@ function scoreRecipe(state: KitchenState, recipe: Recipe, ctx: { today: LocalDat
   let score = 0;
   const reasons: string[] = [];
   const planned = meal.slotRow?.recipeId === recipe.id;
+  const plannedProtein = meal.slotRow?.recipeId ? recipeOf(state, meal.slotRow.recipeId)?.protein : undefined;
   if (planned && meal.slotRow?.source === 'user') {
     score += 200;
     reasons.push('你刚才指定的');
@@ -197,6 +198,10 @@ function scoreRecipe(state: KitchenState, recipe: Recipe, ctx: { today: LocalDat
     score += 30;
     const label = PROTEIN_LABEL[recipe.protein];
     reasons.push(label ? `今天轮到${label}` : '在计划里');
+  } else if (plannedProtein && plannedProtein !== 'none' && recipe.protein === plannedProtein) {
+    // 肉类按轮换，蔬菜和做法可以换：同一种肉的其他菜排在别的肉前面。
+    score += 25;
+    reasons.push('肉类不变，换个做法');
   }
 
   // 短保 / 已解冻 / 临期 —— 只依据真实批次上的日期。

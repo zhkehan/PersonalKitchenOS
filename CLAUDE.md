@@ -90,7 +90,7 @@ npx vitest run tests/domain/intake.test.ts
 
 ### 目录
 
-- 菜谱分层：`core`、`variant`、`backup`、`snack` 在 `src/domain/seed.ts`；用户的菜谱库 `library` 在 `src/domain/library.ts`。`library` 不进自动推荐和 7 天轮换（不要不断生成陌生新菜），用户点名才用。
+- 菜谱分层：`core`、`variant`、`backup`、`snack` 在 `src/domain/seed.ts`；用户的菜谱库 `library` 在 `src/domain/library.ts`。`library` 不进自动推荐和 7 天轮换（不要不断生成陌生新菜），用户点名才用。常备菜 `PANTRY_DEFS` 也在 `library.ts`，属于 `backup`：进自动推荐，不进 7 天轮换。
 - 带 `catalogOnly` 的备用食材平时不算待核对。
 - 酱汁、腌料、料理速查（`references.ts`）和营养（`nutrition.ts`）是静态数据。
 

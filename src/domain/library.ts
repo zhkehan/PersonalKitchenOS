@@ -139,12 +139,6 @@ export const LIBRARY_DEFS: RecipeDef[] = [
     ingredients: [['ground_beef', 454], ['green_pepper', 2], maybe('thai_chili', '按口味'), need('cooking_wine'), need('ginger'), need('minced_garlic'), need('light_soy'), need('white_pepper', '少许'), need('oyster_sauce'), need('sugar', '少量'), need('salt', '少量'), RICE],
     methods: pan(18, ['小火把牛肉末炒散。', '加料酒、姜米、蒜米、辣椒、生抽、白胡椒粉、蚝油、白糖、盐。', '火开到最大，炒香收干。', '确认牛肉碎中心 71°C。']),
   },
-  {
-    id: 'L30', name: '孜然牛肉碎盖饭', tier: 'library', protein: 'beef', flavors: ['孜然'],
-    seasoning: '孜然粉 2 小勺 + 辣椒粉 1/2 小勺 + 蒜粉 1/2 小勺 + 生抽 1 大勺，老抽几滴上色', cut: '牛肉碎，不需切配', leftover: LEFTOVER, safety: SAFE_BEEF,
-    ingredients: [['ground_beef', 454], ['frozen_pepper_onion', 150], need('cumin', '2 小勺'), need('chili_powder', '1/2 小勺'), need('garlic_powder', '1/2 小勺'), need('light_soy', '1 大勺'), maybe('dark_soy', '几滴'), RICE],
-    methods: pan(15, ['牛肉碎中火炒散至变色，沥掉多余油。', '下冷冻辣椒洋葱，炒到水分收干。', '加孜然粉、辣椒粉、蒜粉炒香，再加生抽和老抽翻匀，这袋腌过就先少放生抽，尝过再加。', '确认牛肉碎中心 71°C，炒到无粉色。', '米饭热透到 74°C，把牛肉盖上去。']),
-  },
   // —— 牛肉：涮 ——
   beef('L18', '清汤涮牛肉', ['酸辣'], '万能凉拌汁：生抽 : 陈醋 : 香油 = 2 : 1 : 1，加蒜末和辣椒粉', [need('light_soy'), need('black_vinegar'), need('sesame_oil'), need('minced_garlic'), need('chili_powder', '少量')],
     pot(12, ['水烧开。', '牛肉片分批涮到完全变色。', '调好万能凉拌汁蘸着吃。'])),
@@ -190,43 +184,57 @@ export const LIBRARY_DEFS: RecipeDef[] = [
       { key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 55, fit: '时间仅供参考；放不下就分批', airfryerOnlyOk: true, steps: ['土豆洗净擦干，不去皮。', `空气炸锅 190°C 烤约 45 分钟，中途翻面。${AF}`, '到叉子能轻松穿透。'] },
     ],
   },
-  // —— 用家里常备食材搭的，不靠新鲜蔬菜 ——
+];
+
+const backup = (d: RecipeDef): RecipeDef => ({ ...d, tier: 'backup' });
+
+/**
+ * 常备菜：只用常备的冷冻和常温食材，不靠新鲜蔬菜。
+ * 和菜谱库不同，这些菜进自动推荐，让放久的食材有机会用掉；不进 7 天轮换。
+ */
+export const PANTRY_DEFS: RecipeDef[] = [
   {
-    id: 'L31', name: '咖喱牛肉碎玉米饭', tier: 'library', protein: 'beef', flavors: ['咖喱'],
+    id: 'L30', name: '孜然牛肉碎盖饭', tier: 'backup', protein: 'beef', flavors: ['孜然'],
+    seasoning: '孜然粉 2 小勺 + 辣椒粉 1/2 小勺 + 蒜粉 1/2 小勺 + 生抽 1 大勺，老抽几滴上色', cut: '牛肉碎，不需切配', leftover: LEFTOVER, safety: SAFE_BEEF,
+    ingredients: [['ground_beef', 454], ['frozen_pepper_onion', 150], need('cumin', '2 小勺'), need('chili_powder', '1/2 小勺'), need('garlic_powder', '1/2 小勺'), need('light_soy', '1 大勺'), maybe('dark_soy', '几滴'), RICE],
+    methods: pan(15, ['牛肉碎中火炒散至变色，沥掉多余油。', '下冷冻辣椒洋葱，炒到水分收干。', '加孜然粉、辣椒粉、蒜粉炒香，再加生抽和老抽翻匀，这袋腌过就先少放生抽，尝过再加。', '确认牛肉碎中心 71°C，炒到无粉色。', '米饭热透到 74°C，把牛肉盖上去。']),
+  },
+  {
+    id: 'L31', name: '咖喱牛肉碎玉米饭', tier: 'backup', protein: 'beef', flavors: ['咖喱'],
     seasoning: '咖喱粉 1 大勺 + 蒜粉 1/2 小勺 + 洋葱粉 1/2 小勺 + 生抽 1 大勺', cut: '牛肉碎，不需切配；玉米不用解冻，算进这一餐的碳水', leftover: LEFTOVER, safety: SAFE_BEEF,
     ingredients: [['ground_beef', 454], ['frozen_corn', 150], need('curry_powder', '1 大勺'), need('garlic_powder', '1/2 小勺'), need('onion_powder', '1/2 小勺'), need('light_soy', '1 大勺'), RICE],
     methods: pan(15, ['牛肉碎中火炒散至变色，沥掉多余油。', '下玉米炒 3 分钟。', '加咖喱粉、蒜粉、洋葱粉炒香，加生抽和 2 勺水翻匀收干。', '确认牛肉碎中心 71°C，炒到无粉色。']),
   },
   {
-    id: 'L32', name: '麻辣牛肉碎粉丝', tier: 'library', protein: 'beef', flavors: ['麻辣'], spicy: true,
+    id: 'L32', name: '麻辣牛肉碎粉丝', tier: 'backup', protein: 'beef', flavors: ['麻辣'], spicy: true,
     seasoning: '火锅底料半块，已经很咸，不用另外加盐', cut: '牛肉碎，不需切配；粉丝温水泡软', leftover: LEFTOVER, safety: SAFE_BEEF,
     ingredients: [['ground_beef', 454], ['glass_noodle', 4], ['hotpot_base', 0.5]],
     methods: pan(20, ['粉丝用温水泡软约 10 分钟，沥干。', '牛肉碎中火炒散至变色，沥掉多余油。', '下火锅底料炒化，加约 300ml 水煮开。', '下粉丝煮 3 分钟，到汤汁大部分被吸收。', '确认牛肉碎中心 71°C。']),
   },
   {
-    id: 'L33', name: '虾仁毛豆蛋炒饭', tier: 'library', protein: 'shrimp', flavors: ['家常'],
+    id: 'L33', name: '虾仁毛豆蛋炒饭', tier: 'backup', protein: 'shrimp', flavors: ['家常'],
     seasoning: '生抽 1 大勺 + 蒜粉 1/2 小勺 + 白胡椒少许', cut: '虾解冻沥干，大的切段', leftover: LEFTOVER, safety: `${SAFE_SHRIMP}鸡蛋炒至凝固；米饭放凉后尽快冷藏，复热到 74°C。`,
     ingredients: [['frozen_shrimp', 350], ['rice', 160], ['egg', 2], ['edamame', 100], need('light_soy', '1 大勺'), need('garlic_powder', '1/2 小勺'), need('white_pepper', '少许')],
     methods: pan(25, ['煮饭或用已有米饭。', '虾放冷水解冻约 15 分钟，沥干。', '蛋液炒散盛出。', '少油炒虾到不透明、肉质紧实，下毛豆炒 3 分钟。', '下饭和鸡蛋翻炒，加蒜粉、生抽、白胡椒。']),
   },
-  chicken('L34', '孜然烧烤空气炸鸡', ['孜然'], '孜然烧烤料按包装用量，生抽 1 大勺；烧烤料通常带盐，先少放', [need('bbq_rub_cumin'), need('light_soy', '1 大勺')],
-    [{ key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 20, fit: '首选；时间仅供参考', airfryerOnlyOk: true, steps: ['鸡胸切 2–2.5cm 块，拌孜然烧烤料、生抽和少许油。', `空气炸锅 190°C 约 10 分钟。${AF}`, '翻面再炸 5–7 分钟。', '确认鸡肉中心 74°C。'] }]),
-  chicken('L35', '番茄咖喱鸡丁', ['咖喱'], '咖喱粉 1 大勺 + 蒜粉 1/2 小勺 + 洋葱粉 1/2 小勺 + 生抽 1 大勺', [['canned_tomato', 1], need('curry_powder', '1 大勺'), need('garlic_powder', '1/2 小勺'), need('onion_powder', '1/2 小勺'), need('light_soy', '1 大勺')],
-    pan(25, ['鸡丁少油煎到变色。', '加咖喱粉、蒜粉、洋葱粉炒香。', '倒入番茄罐头和生抽，小火煮约 10 分钟收汁。', '确认鸡肉中心 74°C。'])),
+  backup(chicken('L34', '孜然烧烤空气炸鸡', ['孜然'], '孜然烧烤料按包装用量，生抽 1 大勺；烧烤料通常带盐，先少放', [need('bbq_rub_cumin'), need('light_soy', '1 大勺')],
+    [{ key: 'airfryer', name: '空气炸锅', equipment: ['airfryer'], minutes: 20, fit: '首选；时间仅供参考', airfryerOnlyOk: true, steps: ['鸡胸切 2–2.5cm 块，拌孜然烧烤料、生抽和少许油。', `空气炸锅 190°C 约 10 分钟。${AF}`, '翻面再炸 5–7 分钟。', '确认鸡肉中心 74°C。'] }])),
+  backup(chicken('L35', '番茄咖喱鸡丁', ['咖喱'], '咖喱粉 1 大勺 + 蒜粉 1/2 小勺 + 洋葱粉 1/2 小勺 + 生抽 1 大勺', [['canned_tomato', 1], need('curry_powder', '1 大勺'), need('garlic_powder', '1/2 小勺'), need('onion_powder', '1/2 小勺'), need('light_soy', '1 大勺')],
+    pan(25, ['鸡丁少油煎到变色。', '加咖喱粉、蒜粉、洋葱粉炒香。', '倒入番茄罐头和生抽，小火煮约 10 分钟收汁。', '确认鸡肉中心 74°C。']))),
   {
-    id: 'L36', name: '番茄沙丁鱼意面', tier: 'library', protein: 'fish', flavors: ['番茄', '蒜香'],
+    id: 'L36', name: '番茄沙丁鱼意面', tier: 'backup', protein: 'fish', flavors: ['番茄', '蒜香'],
     seasoning: '蒜粉 1 小勺 + 黑胡椒，蒜盐尝过再加', cut: '沙丁鱼开罐沥水，掰成块', leftover: LEFTOVER, safety: '沙丁鱼和酱汁一起煮热到 74°C；开罐吃不完放冰箱。',
     ingredients: [['canned_sardine', 2], ['canned_tomato', 1], ['pasta', 160], need('garlic_powder', '1 小勺'), need('black_pepper'), maybe('garlic_salt', '少量'), maybe('chili_powder', '少量')],
     methods: [{ key: 'pan', name: '炒锅/小锅', equipment: ['pan', 'pot'], minutes: 20, fit: '首选', steps: ['另锅煮意面。', '番茄罐头加蒜粉、黑胡椒，小火煮 8 分钟。', '下沙丁鱼轻轻拌开，再煮 3 分钟。', '捞出意面拌匀，尝过再决定加不加蒜盐。'] }],
   },
   {
-    id: 'L37', name: '孜然牛肉罐头炒饭', tier: 'library', protein: 'beef', flavors: ['孜然'],
+    id: 'L37', name: '孜然牛肉罐头炒饭', tier: 'backup', protein: 'beef', flavors: ['孜然'],
     seasoning: '孜然粉 1 小勺 + 黑胡椒；罐头本身带盐，生抽尝过再加', cut: '牛肉罐头沥汁，撕小块', leftover: LEFTOVER, safety: '牛肉罐头已熟，炒饭整体热透到 74°C；鸡蛋炒至凝固，米饭放凉后尽快冷藏。',
     ingredients: [['canned_roast_beef', 1], ['rice', 160], ['egg', 2], ['frozen_corn', 100], need('cumin', '1 小勺'), need('black_pepper'), maybe('light_soy', '少量')],
     methods: pan(20, ['煮饭或用已有米饭。', '蛋液炒散盛出。', '少油炒玉米 3 分钟，下牛肉块炒到微焦。', '下饭和鸡蛋翻炒，加孜然粉和黑胡椒，整体炒热。']),
   },
   {
-    id: 'L38', name: '番茄豌豆饺子汤', tier: 'library', protein: 'pork', flavors: ['番茄'], servings: 1,
+    id: 'L38', name: '番茄豌豆饺子汤', tier: 'backup', protein: 'pork', flavors: ['番茄'], servings: 1,
     seasoning: '生抽 1 小勺 + 白胡椒少许，可加陈醋', cut: '饺子不用解冻，豌豆不用解冻', leftover: LEFTOVER, safety: '饺子按包装时间煮到中心 74°C。',
     ingredients: [['pork_dumpling', 13], ['canned_tomato', 1], ['frozen_sweet_peas', 85], need('light_soy', '1 小勺'), need('white_pepper', '少许'), maybe('black_vinegar', '少量')],
     methods: pot(15, ['番茄罐头加约 400ml 水煮开。', '下饺子，按包装时间煮。', '饺子快好时下豌豆，再煮 2 分钟。', '加生抽、白胡椒，喜欢酸的加陈醋，确认饺子中心 74°C。']),

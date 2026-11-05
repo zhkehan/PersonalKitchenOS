@@ -1,4 +1,4 @@
-import { LIBRARY_DEFS, LIBRARY_INGREDIENTS } from './library';
+import { LIBRARY_DEFS, LIBRARY_INGREDIENTS, PANTRY_DEFS } from './library';
 import {
   AF, expandRecipes, ing, LEFTOVER, meat, ODOR_CHICKEN, ODOR_FISH, SAFE_BEEF, SAFE_CHICKEN, SAFE_FISH, SAFE_PORK, SAFE_SHRIMP, sauce, type RecipeDef,
 } from './seedHelpers';
@@ -297,7 +297,7 @@ export const BAG_QTY_MIGRATION = 'migration:bag_qty_454g';
 export const PORTION_QTY_MIGRATION = 'migration:portion_qty';
 
 export function seedRecipes(): Pick<KitchenState, 'recipes' | 'recipe_variants' | 'recipe_ingredients' | 'recipe_steps'> {
-  return expandRecipes([...DEFS, ...LIBRARY_DEFS]);
+  return expandRecipes([...DEFS, ...LIBRARY_DEFS, ...PANTRY_DEFS]);
 }
 
 export function seedState(): KitchenState {

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { consumePairingLink } from '../ai/client';
 import { hasStockLink, readStockLink, stockLinkKey, type StockLink } from '../domain/stockLink';
+import { watchAppUpdate } from './appUpdate';
 import { ToastView } from './components';
 import { Cook, type CookRequest } from './Cook';
 import { Home } from './Home';
@@ -55,6 +56,10 @@ export function App() {
     window.addEventListener('hashchange', check);
     return () => window.removeEventListener('hashchange', check);
   }, [state.audit_events, showToast]);
+
+  const busy = useRef(false);
+  busy.current = !!cook || state.cook_sessions.some((s) => s.status === 'started');
+  useEffect(() => watchAppUpdate(() => !busy.current), []);
 
   // 上次没做完就退出了：继续那次做饭，而不是另起一次。
   const active = state.cook_sessions.find((s) => s.status === 'started');

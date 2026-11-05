@@ -7,7 +7,7 @@
 | 类型检查 | `npm run typecheck` | 通过，无错误 |
 | 单元和集成 | `npm test` | **225 / 225 通过**（8 个文件） |
 | 真实模型（Gemini） | `npm run ai:check` | 见下方「真实模型验证」 |
-| 浏览器端到端 | `npm run test:e2e` | **37 / 37 通过** |
+| 浏览器端到端 | `npm run test:e2e` | **40 / 40 通过** |
 | 依赖审计 | `npm audit --omit=dev` | 0 个漏洞 |
 
 ---

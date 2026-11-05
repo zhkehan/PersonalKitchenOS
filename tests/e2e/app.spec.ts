@@ -537,6 +537,55 @@ test('库存链接：确认前不写入，确认后入库，同一份不能导�
   await expect(toast(page)).toContainText('打不开');
 });
 
+test.describe('App 更新', () => {
+  const mark = (page: Page) => page.evaluate(() => { (window as unknown as { old?: boolean }).old = true; });
+  const stillOld = (page: Page) => page.evaluate(() => (window as unknown as { old?: boolean }).old === true);
+  const newVersionTakesOver = (page: Page) => page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event('controllerchange')));
+
+  async function controlled(page: Page) {
+    await open(page);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '今天吃什么？' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  }
+
+  test('新版本接管后自动刷新，不用重启 App', async ({ page }) => {
+    await controlled(page);
+    await mark(page);
+    await newVersionTakesOver(page);
+    await expect.poll(() => stillOld(page).catch(() => true)).toBe(false);
+    await expect(page.getByRole('heading', { name: '今天吃什么？' })).toBeVisible();
+  });
+
+  test('做饭中不打断，做完回到前台时再刷新', async ({ page }) => {
+    await controlled(page);
+    await page.getByRole('button', { name: '开始做' }).click();
+    await expect(page.getByRole('button', { name: '做完并开吃' })).toBeVisible();
+    await mark(page);
+    await newVersionTakesOver(page);
+    await page.waitForTimeout(300);
+    expect(await stillOld(page)).toBe(true);
+
+    await page.getByRole('button', { name: '返回' }).click();
+    await expect(page.getByRole('button', { name: '做完并开吃' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /点这里继续/ })).toHaveCount(0);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(() => stillOld(page).catch(() => true)).toBe(false);
+  });
+
+  test.describe('第一次安装', () => {
+    test.use({ serviceWorkers: 'block' });
+    test('Service Worker 第一次接管不算更新，不刷新', async ({ page }) => {
+      await open(page);
+      await mark(page);
+      await newVersionTakesOver(page);
+      await page.waitForTimeout(300);
+      expect(await stillOld(page)).toBe(true);
+    });
+  });
+});
+
 test('从菜谱库开始做：做完只扣一次原料', async ({ page }) => {
   await open(page);
   await tab(page, '菜谱');

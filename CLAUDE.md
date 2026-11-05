@@ -97,7 +97,7 @@ AI 确认后的提案 ─────────────┘
 - **改目录要想到已安装的手机。** `ensureSeeded` 只在空库时写入。已有数据靠 `syncCatalog` 拿到新内容：每次启动和恢复备份后运行，只按 id 补缺的行，所以**新增行会到手机，改已有行不会**。要改已有行，用 `OUTDATED_NOTES` 这样的精确匹配，并确认那个字段用户改不了；用户改得了的字段（比如菜谱用量）要像 `BAG_QTY_MIGRATION` 那样匹配旧值，并用一次性标记，否则用户之后的修改会被盖掉。新装的 `seedState` 要自带这个标记。用户自建了同名食材时会沿用用户那条。
 - **改表结构**：`src/data/db.ts` 的 `SCHEMA_VERSION` 要加 1，并保留旧版本声明和 Dexie 升级逻辑，同时在 `src/data/backup.ts` 的 `MIGRATIONS` 里写备份升级。目前只有 v1，这条链路还没有真实迁移过，不能丢用户数据。
 - **网址不能变。** 数据按来源隔离，改仓库名或换域名后，手机打开的是空库。
-- **push 到 `main` 就是发布。** GitHub Actions 在 Linux 上跑 `vitest` 和 `build`，然后部署 Pages，PWA 自动更新。CI 不跑 E2E，push 前在本地跑。测试不能假设 Windows。
+- **push 到 `main` 就是发布。** GitHub Actions 在 Linux 上跑 `vitest` 和 `build`，然后部署 Pages。手机切回前台时查更新，新版本接管后自动刷新，做饭中等做完再刷新（`src/ui/appUpdate.ts`）。CI 不跑 E2E，push 前在本地跑。测试不能假设 Windows。
 - **`.env` 含真实 Key，不读取、不打印。** 它靠 NTFS 的 `com.dropbox.ignored` 流避免同步到 Dropbox，整文件重写会冲掉这个标记。`server/config.ts` 的 `protectEnvFile` 在启动时会补上，但改完后要确认。`node_modules`、`dist` 等目录也带这个标记，设置方法见 README。
 - **测试时钟固定。** `tests/domain/helpers.ts` 的 `Kitchen` 把时间固定在 2026-11-04 12:00 PST，并直接调用 `execute()`。新的领域测试用它。
 - **覆盖范围**：真实模型发现的误判要在 `tests/domain/ai.test.ts` 里加回归测试。`TEST_REPORT.md` 里的通过数字要来自实际运行结果。

@@ -139,6 +139,12 @@ export const LIBRARY_DEFS: RecipeDef[] = [
     ingredients: [['ground_beef', 454], ['green_pepper', 2], maybe('thai_chili', '按口味'), need('cooking_wine'), need('ginger'), need('minced_garlic'), need('light_soy'), need('white_pepper', '少许'), need('oyster_sauce'), need('sugar', '少量'), need('salt', '少量'), RICE],
     methods: pan(18, ['小火把牛肉末炒散。', '加料酒、姜米、蒜米、辣椒、生抽、白胡椒粉、蚝油、白糖、盐。', '火开到最大，炒香收干。', '确认牛肉碎中心 71°C。']),
   },
+  {
+    id: 'L30', name: '孜然牛肉碎盖饭', tier: 'library', protein: 'beef', flavors: ['孜然'],
+    seasoning: '孜然粉 2 小勺 + 辣椒粉 1/2 小勺 + 蒜粉 1/2 小勺 + 生抽 1 大勺，老抽几滴上色', cut: '牛肉碎，不需切配', leftover: LEFTOVER, safety: SAFE_BEEF,
+    ingredients: [['ground_beef', 454], ['frozen_pepper_onion', 150], need('cumin', '2 小勺'), need('chili_powder', '1/2 小勺'), need('garlic_powder', '1/2 小勺'), need('light_soy', '1 大勺'), maybe('dark_soy', '几滴'), RICE],
+    methods: pan(15, ['牛肉碎中火炒散至变色，沥掉多余油。', '下冷冻辣椒洋葱，炒到水分收干。', '加孜然粉、辣椒粉、蒜粉炒香，再加生抽和老抽翻匀，这袋腌过就先少放生抽，尝过再加。', '确认牛肉碎中心 71°C，炒到无粉色。', '米饭热透到 74°C，把牛肉盖上去。']),
+  },
   // —— 牛肉：涮 ——
   beef('L18', '清汤涮牛肉', ['酸辣'], '万能凉拌汁：生抽 : 陈醋 : 香油 = 2 : 1 : 1，加蒜末和辣椒粉', [need('light_soy'), need('black_vinegar'), need('sesame_oil'), need('minced_garlic'), need('chili_powder', '少量')],
     pot(12, ['水烧开。', '牛肉片分批涮到完全变色。', '调好万能凉拌汁蘸着吃。'])),

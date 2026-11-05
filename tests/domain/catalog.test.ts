@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findIngredient, findRecipe, ingredientInText, recipeInText } from '../../src/domain/ai/match';
+import { findIngredient, findRecipe, ingredientInText, recipeInText } from '../../src/domain/match';
 import { MARINADE_NOTE, DIPS, HOT_SAUCES, MARINADES, TEMPLATES } from '../../src/domain/references';
 import { LIBRARY_DEFS, LIBRARY_INGREDIENTS } from '../../src/domain/library';
 import { NUTRITION_FACTS } from '../../src/domain/nutrition';

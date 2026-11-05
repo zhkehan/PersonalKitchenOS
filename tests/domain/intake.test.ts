@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { resolveProposal } from '../../src/domain/ai/resolve';
-import { ruleParse } from '../../src/domain/ai/ruleParser';
 import { addDays } from '../../src/domain/dates';
 import { dayIntake, recentIntake, recipeServing } from '../../src/domain/intake';
 import { macroLine, macrosOf, NUTRITION_FACTS } from '../../src/domain/nutrition';
@@ -308,16 +306,6 @@ describe('一天吃了多少', () => {
     expect(d.macros.kcal).toBe(0);
     expect(d.uncounted).toEqual(['香蕉']);
     expect(d.entries[0].macros).toBeNull();
-  });
-
-  it('不在菜谱里的食物，说一句就能记进来', () => {
-    const k = new Kitchen();
-    const text = '吃了半罐牛肉罐头';
-    const r = resolveProposal(k.state, k.ctx(), ruleParse(text, k.state, k.now), text);
-    if (r.type !== 'preview') throw new Error(`没有得到预览：${r.type}`);
-    k.run(r.command, r.input);
-    expect(dayIntake(k.state, TODAY).macros.protein).toBeCloseTo(35);
-    expect(dayIntake(k.state, TODAY).uncounted).toEqual([]);
   });
 
   it('按午餐、晚餐、加餐排序', () => {

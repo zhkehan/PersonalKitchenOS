@@ -3,38 +3,19 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "个人厨房助手：本地优先 PWA，AI 负责理解，确定性程序负责库存和计划。",
+  "description": "个人厨房系统：Claude Code 负责理解，确定性程序负责库存、计划和营养，数据是本地文件。",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "serve": "tsx server/helper.ts",
+    "kitchen": "tsx src/cli/kitchen.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:e2e": "playwright test",
-    "icons": "node scripts/make-icons.mjs",
-    "ai:check": "tsx server/check-ai.ts",
-    "stock:link": "tsx scripts/stock-link.ts"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.4.0",
-    "dexie": "4.4.7",
-    "qrcode-terminal": "0.12.0",
-    "react": "19.3.1",
-    "react-dom": "19.3.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
     "@types/node": "26.6.6",
-    "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.2.1",
-    "fake-indexeddb": "6.2.7",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vite": "8.3.5",
-    "vite-plugin-pwa": "2.0.0",
     "vitest": "5.1.0"
   }
 }

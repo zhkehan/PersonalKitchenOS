@@ -1,4 +1,4 @@
-import type { Id, Ingredient, KitchenState, Recipe } from '../types';
+import type { Id, Ingredient, KitchenState, Recipe } from './types';
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 

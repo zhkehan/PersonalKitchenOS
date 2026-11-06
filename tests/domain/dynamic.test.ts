@@ -17,6 +17,47 @@ function cooked() {
   return k;
 }
 
+describe('每周肉类次数提醒', () => {
+  const day = (n: number) => addDays(TODAY, n);
+
+  it('换菜造成一周两次牛肉时提醒，计划照改', () => {
+    const k = new Kitchen();
+    const r = k.run('swapRecipe', { date: day(3), recipeId: 'R04' });
+    expect(r.warnings.join('')).toContain('牛肉碎在 11/5–11/7 有 2 天，超过每周 1 天');
+    expect(k.slot(`${day(3)}:lunch`).recipeId).toBe('R04');
+  });
+
+  it('对调造成超额时也提醒', () => {
+    const k = new Kitchen();
+    const r = k.run('moveMeal', { fromDate: day(1), toDate: day(7) });
+    expect(r.warnings.join('')).toContain('牛肉碎');
+  });
+
+  it('换同一种肉、不超次数时不提醒', () => {
+    const k = new Kitchen();
+    expect(k.run('swapRecipe', { date: day(1), recipeId: 'L31' }).warnings).toEqual([]);
+    expect(k.run('moveMeal', { fromDate: day(3), toDate: day(4) }).warnings).toEqual([]);
+  });
+
+  it('已经吃过的一天也算进去', () => {
+    const k = new Kitchen();
+    k.run('swapRecipe', { date: day(1), recipeId: 'R02' });
+    k.run('swapRecipe', { date: TODAY, recipeId: 'R04' });
+    k.run('finishCook', { recipeId: 'R04', date: TODAY, slot: 'lunch', servings: 2, eatNow: 2 });
+    expect(k.slot(`${TODAY}:lunch`).status).toBe('eaten');
+    expect(k.run('swapRecipe', { date: day(2), recipeId: 'R04' }).warnings.join('')).toContain('牛肉碎');
+  });
+
+  it('外食的一天不算，原本就超的不重复提醒', () => {
+    const k = new Kitchen();
+    k.run('setDayAway', { date: day(1) });
+    expect(k.run('swapRecipe', { date: TODAY, recipeId: 'R04' }).warnings).toEqual([]);
+    k.run('swapRecipe', { date: day(3), recipeId: 'R04' });
+    expect(k.last.warnings.join('')).toContain('有 2 天');
+    expect(k.run('swapRecipe', { date: day(2), recipeId: 'L34' }).warnings.join('')).not.toContain('牛肉碎');
+  });
+});
+
 describe('B. 动态日程', () => {
   it('11 外食前尚未做饭：午餐外食，晚餐单份约 227g，库存不变，采购更新', () => {
     const k = new Kitchen();

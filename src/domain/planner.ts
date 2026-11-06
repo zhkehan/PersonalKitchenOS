@@ -1,4 +1,4 @@
-import { addDays, friendlyDate, localDate, localHour, type LocalDate } from './dates';
+import { addDays, friendlyDate, localDate, localHour, shortDate, type LocalDate } from './dates';
 import { ROTATION_CYCLE } from './seed';
 import type { Id, KitchenState, MealPlanVersion, MealSlot, PlanChange, PreparedBatch, Protein, Recipe, Row, SlotKind } from './types';
 import type { Tx } from './tx';
@@ -274,6 +274,46 @@ export function rotationHint(state: KitchenState, now: Date): RotationHint | nul
     return { text: `这 7 天没有排到${pref.label}，要改到${friendlyDate(swapDate, today)}吗？`, date: swapDate, recipeId: core.id };
   }
   return null;
+}
+
+export interface ProteinPeak {
+  days: number;
+  start: LocalDate;
+  end: LocalDate;
+}
+
+/** 隔 6 天就算下一周。按整 7 天数的话，相邻两天对调会和下一轮的同一种肉撞上，天天误报。 */
+const WEEK_SPAN_DAYS = 6;
+
+/** 每种肉在一周的跨度内最多有几天。吃过的和计划里的一起算，外食和不吃的不算。 */
+export function proteinPeaks(state: KitchenState, today: LocalDate): Map<Protein, ProteinPeak> {
+  const days = new Map<Protein, Set<LocalDate>>();
+  for (const s of state.meal_slots) {
+    if (s.date < addDays(today, -6) || s.slot === 'snack' || !s.recipeId || s.status === 'skipped' || s.status === 'eating_out') continue;
+    const p = recipeOf(state, s.recipeId)?.protein;
+    if (!p) continue;
+    if (!days.has(p)) days.set(p, new Set());
+    days.get(p)!.add(s.date);
+  }
+  const peaks = new Map<Protein, ProteinPeak>();
+  for (const [protein, dates] of days) {
+    for (const start of dates) {
+      const inWeek = [...dates].filter((d) => d >= start && d < addDays(start, WEEK_SPAN_DAYS)).sort();
+      const best = peaks.get(protein);
+      if (!best || inWeek.length > best.days || (inWeek.length === best.days && start < best.start)) peaks.set(protein, { days: inWeek.length, start, end: inWeek.at(-1)! });
+    }
+  }
+  return peaks;
+}
+
+/** 只提醒这次操作新造成的超额，原本就超的不重复说。只提醒，不拦也不改计划。 */
+export function warnProteinPeaks(tx: Tx, before: Map<Protein, ProteinPeak>, today: LocalDate) {
+  const after = proteinPeaks(tx.state, today);
+  for (const pref of tx.state.protein_weekly_preferences) {
+    const peak = after.get(pref.id);
+    if (!peak || pref.daysPerWeek === 0 || peak.days <= pref.daysPerWeek || peak.days <= (before.get(pref.id)?.days ?? 0)) continue;
+    tx.warnings.push(`${pref.label}在 ${shortDate(peak.start)}–${shortDate(peak.end)} 有 ${peak.days} 天，超过每周 ${pref.daysPerWeek} 天`);
+  }
 }
 
 export function batchesForSlot(state: KitchenState, slot: MealSlot): PreparedBatch | undefined {

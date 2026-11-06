@@ -5,8 +5,7 @@ import {
 } from './inventory';
 import {
   changeSlot, commitPlanVersion, currentMeal, defaultVariantId, ensurePlan, planHorizonEnd, pref, pullForward, recipeOf,
-  reflow, setPref, slotId, slotLabel, slotSort, swapDays, SLOT_LABEL,
-} from './planner';
+  reflow, setPref, slotId, slotLabel, slotSort, swapDays, SLOT_LABEL, proteinPeaks, warnProteinPeaks } from './planner';
 import { COOKING_OIL_PREF } from './intake';
 import { BAG_QTY_MIGRATION, PORTION_QTY_MIGRATION, RICE_QTY_MIGRATION, seedState } from './seed';
 import { forecastShopping } from './shopping';
@@ -153,6 +152,7 @@ const swapRecipe = {
     const recipe = getRecipe(tx, i.recipeId);
     const variantId = i.variantId ?? defaultVariantId(tx.state, recipe.id);
     const from = currentMeal(tx.ctx.now);
+    const peaks = proteinPeaks(tx.state, today(tx));
     const dates = Array.from({ length: i.days ?? 1 }, (_, n) => addDays(i.date, n));
     const changed: string[] = [];
     for (const date of dates) {
@@ -167,6 +167,7 @@ const swapRecipe = {
     if (changed.length === 0) throw new DomainError('NO_SLOT', '没有可以改的餐次');
     tx.planLog.push({ slotId: slotId(i.date, i.slot ?? 'lunch'), phrase: `${changed.join('、')}改成「${recipe.name}」`, before: {} as never, after: {} as never });
     reflow(tx, `换菜：${recipe.name}`);
+    warnProteinPeaks(tx, peaks, today(tx));
     finishPlanSummary(tx, tx.details[0] ?? `改成「${recipe.name}」`);
   },
 };
@@ -177,8 +178,10 @@ const moveMeal = {
     if (i.fromDate === i.toDate) throw new DomainError('SAME_DAY', '两天是同一天');
     const locked = tx.state.meal_slots.some((s) => (s.date === i.fromDate || s.date === i.toDate) && s.locked);
     if (locked) throw new DomainError('LOCKED', '其中一天已锁定，先解锁再调整');
+    const peaks = proteinPeaks(tx.state, today(tx));
     swapDays(tx, i.fromDate, i.toDate, `${friendlyDate(i.fromDate, today(tx))}和${friendlyDate(i.toDate, today(tx))}的菜对调`);
     reflow(tx, '调整日期');
+    warnProteinPeaks(tx, peaks, today(tx));
     finishPlanSummary(tx, tx.details[0] ?? '没有可调整的餐次');
   },
 };
